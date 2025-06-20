@@ -80,7 +80,6 @@
             text-align: center;
             min-height: 40px; /* Reserve space for guide text */
         }
-         /* --- Interactive Guide Styles --- */
         .guide-container {
             text-align: center;
             padding-top: 5px;
@@ -111,7 +110,6 @@
             background-color: var(--error-bg);
             color: var(--error-text);
         }
-
         .card {
             background: white;
             border-radius: 5px;
@@ -306,7 +304,6 @@
                 <span id="guide-text-element" class="guide-text"></span>
             </div>
         </header>
-
         <div class="card">
             <h2 class="card-title">Таблиця даних</h2>
             <table>
@@ -347,13 +344,11 @@
             <div class="loader-text">Генеруємо документи...</div>
         </div>
     </div>
-
     <script>
         const TEMPLATE_URL = 'https://gitknu.github.io/patent_withdrawal/input_patent_withdrawal.docx';
         const PLACEHOLDERS = ['num_p', 'type', 'name', 'num_db', 'start', 'end', 'value', 'person'];
         const INITIAL_ROWS_COUNT = 3;
         const MAX_ROWS_COUNT = 50;
-
         const tableBody = document.getElementById('table-body');
         const generateBtn = document.getElementById('generate-btn');
         const generateBtnTop = document.getElementById('generate-btn-top');
@@ -362,11 +357,8 @@
         const toGenerateEl = document.getElementById('to-generate');
         const loader = document.getElementById('loader');
         const guideTextElement = document.getElementById('guide-text-element');
-
-        // --- Interactive Guide & Alert Logic ---
         let tutorialActive = true;
         let tutorialStep = 0;
-
         const tutorialSteps = [
             { text: "Введіть у першому полі 6 цифр номеру патенту", trigger: 'start' },
             { text: "Чудово! Натисніть Tab для переходу далі", trigger: 'num_p_valid' },
@@ -378,7 +370,6 @@
             { text: "Супер! Тепер тисніть Enter, щоб згенерувати документи", trigger: 'esc_pressed' },
             { text: "<span class='final-hint'>Shift+Tab: Назад | Tab: Вперед | Esc: Вийти | Enter: Згенерувати</span>", trigger: 'end' }
         ];
-        
         function hideGuideAlert() {
             if (guideTextElement.classList.contains('error')) {
                 guideTextElement.classList.remove('error', 'visible');
@@ -392,7 +383,6 @@
                 }, 300);
             }
         }
-
         function showGuideAlert(message) {
             if (tutorialActive) endTutorial();
             guideTextElement.classList.remove('visible');
@@ -401,7 +391,6 @@
                 guideTextElement.classList.add('error', 'visible');
             }, 150);
         }
-
         function showGuideText(stepIndex) {
             if (!tutorialActive || stepIndex < tutorialStep) return;
             tutorialStep = stepIndex;
@@ -412,21 +401,16 @@
                 guideTextElement.classList.add('visible');
             }, 200);
         }
-
         function endTutorial() {
             if (!tutorialActive) return;
             tutorialActive = false;
             setTimeout(() => showGuideText(tutorialSteps.length - 1), 1000);
-        }
-        
-        // --- Validation & Data Functions ---
-        
+        } 
         function validatePersonName(cell) {
             const text = cell.textContent.trim();
             const nameRegex = /^[А-ЯІЇЄҐ][а-яіїєґ']+ [А-ЯІЇЄҐ'-]+$/u;
             cell.classList.toggle('invalid', text !== '' && !nameRegex.test(text));
         }
-
         function isValidDateString(dateStr) {
             if (!/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) return false;
             const parts = dateStr.split('.');
@@ -437,21 +421,17 @@
             const date = new Date(year, month - 1, day);
             return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
         }
-        
         function isValidCostString(costStr) {
             return /^\d{1,9},\d{2}$/.test(costStr);
         }
-
         function parseDate(dateStr) {
             const parts = dateStr.split('.');
             return new Date(parts[2], parts[1] - 1, parts[0]);
         }
-        
         function validateCostRow(cell) {
             const costStr = cell.textContent.trim();
             cell.classList.toggle('invalid', costStr !== '' && !isValidCostString(costStr));
         }
-        
         function validateNumberUniqueness() {
             const numberCells = tableBody.querySelectorAll('td:nth-child(3) .editable-cell');
             const values = {}; 
@@ -463,7 +443,6 @@
                     values[value].cells.push(cell);
                 }
             });
-
             numberCells.forEach(cell => {
                 const text = cell.textContent.trim();
                 const isLengthInvalid = text !== '' && !/^\d{6}$/.test(text);
@@ -475,35 +454,27 @@
                 showGuideText(1);
             }
         }
-
         function validateDateRow(row) {
             const startDateCell = row.querySelector('td:nth-child(7) .editable-cell');
             const endDateCell = row.querySelector('td:nth-child(8) .editable-cell');
             const typeCell = row.querySelector('td:nth-child(4) .editable-cell');
             if (!startDateCell || !endDateCell || !typeCell) return;
-
             const startStr = startDateCell.textContent.trim();
             const endStr = endDateCell.textContent.trim();
-            
             startDateCell.classList.remove('invalid');
             endDateCell.classList.remove('invalid');
-
             const isStartFormatValid = startStr === '' || isValidDateString(startStr);
             const isEndFormatValid = endStr === '' || isValidDateString(endStr);
-
             if (startStr !== '' && !isStartFormatValid) startDateCell.classList.add('invalid');
             if (endStr !== '' && !isEndFormatValid) endDateCell.classList.add('invalid');
-
             if (isStartFormatValid && isEndFormatValid && startStr !== '' && endStr !== '') {
                 const startDate = parseDate(startStr);
                 const endDate = parseDate(endStr);
-                
                 if (endDate <= startDate) {
                     startDateCell.classList.add('invalid');
                     endDateCell.classList.add('invalid');
                     return; 
                 }
-                
                 const typeStr = typeCell.textContent.trim();
                 let maxYears = 0;
                 if (typeStr === 'корисну модель' || typeStr === 'торговельну марку') {
@@ -511,7 +482,6 @@
                 } else if (typeStr === 'винахід') {
                     maxYears = 30;
                 }
-
                 if (maxYears > 0) {
                     const maxEndDate = new Date(startDate.getTime());
                     maxEndDate.setFullYear(maxEndDate.getFullYear() + maxYears);
@@ -522,7 +492,6 @@
                 }
             }
         }
-
         function addNewRow() {
             const newIndex = tableBody.rows.length;
             const newRow = document.createElement('tr');
@@ -534,7 +503,6 @@
             newRow.innerHTML = html;
             tableBody.appendChild(newRow);
         }
-
         function initTable() {
             tableBody.innerHTML = '';
             for (let i = 0; i < INITIAL_ROWS_COUNT; i++) addNewRow();
@@ -542,7 +510,6 @@
             const firstCell = tableBody.querySelector('tr:first-child .editable-cell');
             if (firstCell) firstCell.focus();
         }
-
         function updateStatus() {
             const rows = tableBody.querySelectorAll('tr');
             let completeRowCount = 0;
@@ -550,14 +517,11 @@
                 const cells = row.querySelectorAll('.editable-cell');
                 const statusLight = row.querySelector('.status-light');
                 let filledCellCount = 0;
-                let hasInvalidCells = !!row.querySelector('.editable-cell.invalid');
-                
+                let hasInvalidCells = !!row.querySelector('.editable-cell.invalid');       
                 cells.forEach(cell => {
                     if (cell.textContent.trim() !== '') filledCellCount++;
                 });
-
                 const isComplete = filledCellCount === cells.length && !hasInvalidCells;
-
                 if (filledCellCount === 0) {
                     statusLight.className = 'status-light status-grey';
                 } else if (!isComplete) {
@@ -566,7 +530,6 @@
                     statusLight.className = 'status-light status-green';
                     completeRowCount++;
                 }
-                
                 if(tutorialActive && rowIndex === 0 && isComplete) {
                     if(document.activeElement === row.querySelector('td:last-child .editable-cell')) {
                          showGuideText(6);
@@ -576,7 +539,6 @@
             filledRowsEl.textContent = `${completeRowCount}/${rows.length}`;
             toGenerateEl.textContent = completeRowCount;
         }
-
         function showNotification(message, isSuccess = true) {
             notification.textContent = message;
             notification.className = `notification ${isSuccess ? 'success' : 'error'} show`;
@@ -584,7 +546,6 @@
                 notification.classList.remove('show');
             }, 5000);
         }
-
         function getTableData() {
             const data = [];
             tableBody.querySelectorAll('tr').forEach(row => {
@@ -603,9 +564,7 @@
             });
             return data;
         }
-
         async function generateDocuments() {
-            // Run all validations and show guide alerts
             const checks = [
                 { selector: 'td:nth-child(3) .editable-cell.invalid', message: 'Помилка: "Номер" має містити 6 <b>унікальних</b> цифр.' },
                 { selector: 'td:nth-child(4) .editable-cell.invalid', message: 'Помилка: "Тип" невірний. Введіть "в", "к" або "т".' },
@@ -614,7 +573,6 @@
                 { selector: 'td:nth-child(9) .editable-cell.invalid', message: 'Помилка: "Вартість" має формат <b>1234,56</b>.' },
                 { selector: 'td:nth-child(10) .editable-cell.invalid', message: 'Помилка: "Підписує" має формат <b>Ім\'я ПРІЗВИЩЕ</b>.' }
             ];
-
             for (const check of checks) {
                 const invalidCells = tableBody.querySelectorAll(check.selector);
                 if (invalidCells.length > 0) {
@@ -623,13 +581,11 @@
                     return;
                 }
             }
-
             const data = getTableData();
             if (data.length === 0) {
                 showGuideAlert('Помилка: Немає повністю та коректно заповнених рядків для генерації.');
                 return;
             }
-
             try {
                 loader.classList.add('active');
                 const templateContent = await new Promise((resolve, reject) => {
@@ -637,8 +593,7 @@
                         if (error) reject(new Error(`Помилка завантаження шаблону.`));
                         else resolve(content);
                     });
-                });
-                
+                });   
                 for (const [index, rowData] of data.entries()) {
                     const zip = new PizZip(templateContent);
                     const doc = new docxtemplater(zip, { delimiters: { start: '<', end: '>' } });
@@ -654,13 +609,9 @@
             } finally {
                 loader.classList.remove('active');
             }
-        }
-        
-        // --- Event Listeners Setup ---
-        
+        } 
         generateBtn.addEventListener('click', generateDocuments);
         generateBtnTop.addEventListener('click', generateDocuments);
-
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Enter' && !event.target.classList.contains('editable-cell')) {
                 event.preventDefault();
@@ -672,11 +623,9 @@
                 }
             }
         });
-
         document.addEventListener('DOMContentLoaded', () => {
             initTable();
             showGuideText(0);
-
             tableBody.addEventListener('focusin', (event) => {
                 const cell = event.target;
                 if (!tutorialActive || !cell.classList.contains('editable-cell')) return;
@@ -690,30 +639,23 @@
                 if(cellIndex === 4) showGuideText(4);
                 if(cellIndex === 9) showGuideText(5);
             });
-
             tableBody.addEventListener('keydown', (event) => {
                 const cell = event.target;
-                if (!cell.classList.contains('editable-cell')) return;
-                
+                if (!cell.classList.contains('editable-cell')) return; 
                 const isCharKey = event.key.length === 1 && !event.ctrlKey && !event.metaKey;
                 const cellIndex = cell.closest('td').cellIndex;
-
                 if (event.key === 'Tab' && cell.classList.contains('invalid')) {
                     event.preventDefault();
                     return;
                 }
-                
                 const maxLengths = { 2: 6, 5: 9, 6: 10, 7: 10, 8: 12 }; // ColIndex: MaxLength
                 if (maxLengths[cellIndex] && cell.textContent.length >= maxLengths[cellIndex] && isCharKey && window.getSelection().toString().length === 0) {
                     event.preventDefault();
                 }
-
                 if ((cellIndex === 2 || cellIndex === 5) && !/^\d$/.test(event.key) && isCharKey) event.preventDefault();
                 else if ((cellIndex === 6 || cellIndex === 7) && !/^[\d.]$/.test(event.key) && isCharKey) event.preventDefault();
                 else if (cellIndex === 8 && !/^[\d,]*$/.test(event.key) && isCharKey) event.preventDefault();
                 else if (cellIndex === 9 && !/^[А-ЯІЇЄҐа-яіїєґ' -]$/u.test(event.key) && isCharKey) event.preventDefault();
-
-
                 if (cellIndex === 3) {
                     const validTypes = ['винахід', 'корисну модель', 'торговельну марку'];
                     if (event.key === 'Backspace' || event.key === 'Delete') {
@@ -722,20 +664,14 @@
                     } else if (validTypes.includes(cell.textContent.trim()) && isCharKey) event.preventDefault();
                 }
             });
-
             tableBody.addEventListener('input', (event) => {
                 const cell = event.target;
-                if (!cell.classList.contains('editable-cell')) return;
-                
+                if (!cell.classList.contains('editable-cell')) return; 
                 hideGuideAlert(); // Clear any error message on new input
-
                 const parentTd = cell.closest('td');
                 const parentRow = cell.closest('tr');
                 if (!parentTd || !parentRow) return;
-
                 const cellIndex = parentTd.cellIndex;
-
-                // --- Live Validation ---
                 if (cellIndex === 2) validateNumberUniqueness();
                 if (cellIndex === 3) {
                     const text = cell.textContent.trim().toLowerCase();
@@ -759,13 +695,10 @@
                 if (cellIndex === 6 || cellIndex === 7) validateDateRow(parentRow);
                 if (cellIndex === 8) validateCostRow(cell);
                 if (cellIndex === 9) validatePersonName(cell);
-
-                // --- Auto-correct separators ---
                 if (cellIndex === 8 || cellIndex === 6 || cellIndex === 7) {
                     const separator = (cellIndex === 8) ? ',' : '.';
                     const wrongSeparator = (separator === ',') ? '.' : ',';
                     if (cell.textContent.includes(wrongSeparator)) {
-                        // Preserve cursor position
                         const selection = window.getSelection();
                         const offset = selection.getRangeAt(0).startOffset;
                         cell.textContent = cell.textContent.replace(new RegExp(`\\${wrongSeparator}`, 'g'), separator);
@@ -779,15 +712,11 @@
                         }
                     }
                 }
-                
-                // --- Add new row if needed ---
                 if (parentRow === tableBody.lastElementChild && tableBody.rows.length < MAX_ROWS_COUNT) {
                     addNewRow();
                 }
                 updateStatus();
             });
-
-            // Set placeholders for the first row
             const firstRowCells = tableBody.querySelectorAll('tr:first-child .editable-cell');
             const placeholders = [ '123456', 'в/к/т', 'МАШИНА ЧАСУ', '123456789', '01.01.2000', '31.12.2020', '1000,00', 'Тарас ШЕВЧЕНКО'];
             firstRowCells.forEach((cell, index) => {
