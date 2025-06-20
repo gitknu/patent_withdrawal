@@ -271,8 +271,10 @@
             <table>
                 <thead>
                     <tr>
+                        <!-- New enumeration column header -->
+                        <th>#</th>
                         <th class="status-light-th">
-                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                                 <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
                             </svg>
                         </th>
@@ -324,6 +326,8 @@
             let html = '';
             for (let i = 0; i < ROWS_COUNT; i++) {
                 html += '<tr>';
+                // Add enumeration cell
+                html += `<td>${i + 1}</td>`; 
                 html += '<td><div class="status-light status-grey"></div></td>'; // Status light cell
                 for (let j = 0; j < PLACEHOLDERS.length; j++) {
                     html += `<td><div class="editable-cell" contenteditable="true"></div></td>`;
@@ -441,8 +445,9 @@
                         type: 'blob',
                         mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
                     });
-
-                    const filename = `Документ_${rowData.num_p || (index + 1)}_${rowData.name.substring(0, 20) || 'без_назви'}.docx`;
+                    
+                    // Updated filename with enumeration
+                    const filename = `${index + 1}_Акт_${rowData.num_p || 'НомерВідсутній'}.docx`;
                     saveAs(out, filename);
                 }
 
@@ -485,8 +490,8 @@
                     const parentTd = cell.closest('td');
                     if (!parentTd) return;
                     
-                    // The "Номер" field is the second <td> in the row (index 1)
-                    if (parentTd.cellIndex === 1) { 
+                    // The "Номер" field is the third <td> in the row (index 2) due to the new '#' column
+                    if (parentTd.cellIndex === 2) { 
                         const text = cell.textContent.trim();
                         // An empty cell is not 'invalid', just incomplete. 
                         // It's invalid if it has content that doesn't match the format.
