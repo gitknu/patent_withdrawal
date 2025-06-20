@@ -138,6 +138,16 @@
         const PLACEHOLDERS = ['num_p', 'type', 'name', 'num_db', 'start', 'end', 'value', 'person'];
         const INITIAL_ROWS_COUNT = 3;
         const MAX_ROWS_COUNT = 50;
+
+        const checks = [
+            { selector: 'td:nth-child(3) .editable-cell.invalid', message: 'Помилка: "Номер" має містити 6 <b>унікальних</b> цифр.' },
+            { selector: 'td:nth-child(4) .editable-cell.invalid', message: 'Помилка: "Тип" невірний. Введіть "в", "к" або "т".' },
+            { selector: 'td:nth-child(6) .editable-cell.invalid', message: 'Помилка: "Номер НД" має містити рівно <b>9</b> цифр.' },
+            { selector: 'td:nth-child(7) .editable-cell.invalid, td:nth-child(8) .editable-cell.invalid', message: 'Помилка: Перевірте <b>дати</b>. Невірний формат або логіка.' },
+            { selector: 'td:nth-child(9) .editable-cell.invalid', message: 'Помилка: "Вартість" має формат <b>1234,56</b>.' },
+            { selector: 'td:nth-child(10) .editable-cell.invalid', message: 'Помилка: "Підписує" має формат <b>Ім\'я ПРІЗВИЩЕ</b>.' }
+        ];
+
         const tableBody = document.getElementById('table-body');
         const generateBtn = document.getElementById('generate-btn');
         const generateBtnTop = document.getElementById('generate-btn-top');
@@ -146,6 +156,7 @@
         const toGenerateEl = document.getElementById('to-generate');
         const loader = document.getElementById('loader');
         const guideTextElement = document.getElementById('guide-text-element');
+
         let tutorialActive = true;
         let tutorialStep = 0;
         const tutorialSteps = [
@@ -159,6 +170,7 @@
             { text: "Супер! Тепер тисніть Enter, щоб згенерувати документи", trigger: 'esc_pressed' },
             { text: "<span class='final-hint'>Shift+Tab: Назад | Tab: Вперед | Esc: Вийти | Enter: Згенерувати</span>", trigger: 'end' }
         ];
+
         function hideGuideAlert() {
             if (guideTextElement.classList.contains('error')) {
                 guideTextElement.classList.remove('error', 'visible');
@@ -167,21 +179,28 @@
                         guideTextElement.innerHTML = tutorialSteps[tutorialSteps.length - 1].text;
                         guideTextElement.classList.add('visible');
                     } else {
-                         showGuideText(tutorialStep); // Restore current tutorial step
+                        showGuideText(tutorialStep); // Restore current tutorial step
                     }
                 }, 300);
             }
         }
+
         function showGuideAlert(message) {
-            if (tutorialActive) endTutorial();
+            // Do not show any error alerts while the tutorial is active
+            if (tutorialActive) return;
+            
             guideTextElement.classList.remove('visible');
             setTimeout(() => {
                 guideTextElement.innerHTML = message;
                 guideTextElement.classList.add('error', 'visible');
             }, 150);
         }
+
         function showGuideText(stepIndex) {
-            if (!tutorialActive || stepIndex < tutorialStep) return;
+            // After tutorial ends, only allow showing the final hint
+            if (!tutorialActive && stepIndex < tutorialSteps.length - 1) return;
+            if (tutorialActive && stepIndex < tutorialStep) return;
+            
             tutorialStep = stepIndex;
             const step = tutorialSteps[stepIndex];
             guideTextElement.classList.remove('error', 'visible');
@@ -190,16 +209,19 @@
                 guideTextElement.classList.add('visible');
             }, 200);
         }
+
         function endTutorial() {
             if (!tutorialActive) return;
             tutorialActive = false;
-            setTimeout(() => showGuideText(tutorialSteps.length - 1), 1000);
+            setTimeout(() => showGuideText(tutorialSteps.length - 1), 500);
         } 
+
         function validatePersonName(cell) {
             const text = cell.textContent.trim();
             const nameRegex = /^[А-ЯІЇЄҐ][а-яіїєґ']+ [А-ЯІЇЄҐ'-]+$/u;
             cell.classList.toggle('invalid', text !== '' && !nameRegex.test(text));
         }
+
         function isValidDateString(dateStr) {
             if (!/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) return false;
             const parts = dateStr.split('.');
@@ -210,17 +232,21 @@
             const date = new Date(year, month - 1, day);
             return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
         }
+
         function isValidCostString(costStr) {
             return /^\d{1,9},\d{2}$/.test(costStr);
         }
+
         function parseDate(dateStr) {
             const parts = dateStr.split('.');
             return new Date(parts[2], parts[1] - 1, parts[0]);
         }
+
         function validateCostRow(cell) {
             const costStr = cell.textContent.trim();
             cell.classList.toggle('invalid', costStr !== '' && !isValidCostString(costStr));
         }
+
         function validateNumberUniqueness() {
             const numberCells = tableBody.querySelectorAll('td:nth-child(3) .editable-cell');
             const values = {}; 
@@ -243,6 +269,7 @@
                 showGuideText(1);
             }
         }
+
         function validateDateRow(row) {
             const startDateCell = row.querySelector('td:nth-child(7) .editable-cell');
             const endDateCell = row.querySelector('td:nth-child(8) .editable-cell');
@@ -275,12 +302,13 @@
                     const maxEndDate = new Date(startDate.getTime());
                     maxEndDate.setFullYear(maxEndDate.getFullYear() + maxYears);
                     if (endDate > maxEndDate) {
-                         startDateCell.classList.add('invalid');
-                         endDateCell.classList.add('invalid');
+                        startDateCell.classList.add('invalid');
+                        endDateCell.classList.add('invalid');
                     }
                 }
             }
         }
+
         function addNewRow() {
             const newIndex = tableBody.rows.length;
             const newRow = document.createElement('tr');
@@ -292,6 +320,7 @@
             newRow.innerHTML = html;
             tableBody.appendChild(newRow);
         }
+
         function initTable() {
             tableBody.innerHTML = '';
             for (let i = 0; i < INITIAL_ROWS_COUNT; i++) addNewRow();
@@ -299,6 +328,7 @@
             const firstCell = tableBody.querySelector('tr:first-child .editable-cell');
             if (firstCell) firstCell.focus();
         }
+
         function updateStatus() {
             const rows = tableBody.querySelectorAll('tr');
             let completeRowCount = 0;
@@ -306,7 +336,7 @@
                 const cells = row.querySelectorAll('.editable-cell');
                 const statusLight = row.querySelector('.status-light');
                 let filledCellCount = 0;
-                let hasInvalidCells = !!row.querySelector('.editable-cell.invalid');       
+                let hasInvalidCells = !!row.querySelector('.editable-cell.invalid'); 
                 cells.forEach(cell => {
                     if (cell.textContent.trim() !== '') filledCellCount++;
                 });
@@ -328,6 +358,7 @@
             filledRowsEl.textContent = `${completeRowCount}/${rows.length}`;
             toGenerateEl.textContent = completeRowCount;
         }
+
         function showNotification(message, isSuccess = true) {
             notification.textContent = message;
             notification.className = `notification ${isSuccess ? 'success' : 'error'} show`;
@@ -335,6 +366,7 @@
                 notification.classList.remove('show');
             }, 5000);
         }
+
         function getTableData() {
             const data = [];
             tableBody.querySelectorAll('tr').forEach(row => {
@@ -353,15 +385,13 @@
             });
             return data;
         }
+
         async function generateDocuments() {
-            const checks = [
-                { selector: 'td:nth-child(3) .editable-cell.invalid', message: 'Помилка: "Номер" має містити 6 <b>унікальних</b> цифр.' },
-                { selector: 'td:nth-child(4) .editable-cell.invalid', message: 'Помилка: "Тип" невірний. Введіть "в", "к" або "т".' },
-                { selector: 'td:nth-child(6) .editable-cell.invalid', message: 'Помилка: "Номер НД" має містити рівно <b>9</b> цифр.' },
-                { selector: 'td:nth-child(7) .editable-cell.invalid, td:nth-child(8) .editable-cell.invalid', message: 'Помилка: Перевірте <b>дати</b>. Невірний формат або логіка.' },
-                { selector: 'td:nth-child(9) .editable-cell.invalid', message: 'Помилка: "Вартість" має формат <b>1234,56</b>.' },
-                { selector: 'td:nth-child(10) .editable-cell.invalid', message: 'Помилка: "Підписує" має формат <b>Ім\'я ПРІЗВИЩЕ</b>.' }
-            ];
+            // If the user tries to generate, the tutorial ends.
+            if (tutorialActive) {
+                endTutorial();
+            }
+
             for (const check of checks) {
                 const invalidCells = tableBody.querySelectorAll(check.selector);
                 if (invalidCells.length > 0) {
@@ -382,7 +412,7 @@
                         if (error) reject(new Error(`Помилка завантаження шаблону.`));
                         else resolve(content);
                     });
-                });   
+                }); 
                 for (const [index, rowData] of data.entries()) {
                     const zip = new PizZip(templateContent);
                     const doc = new docxtemplater(zip, { delimiters: { start: '<', end: '>' } });
@@ -399,8 +429,21 @@
                 loader.classList.remove('active');
             }
         } 
+
+        function checkAndShowLiveError(row) {
+            if (!row) return;
+            for (const check of checks) {
+                if (row.querySelector(check.selector)) {
+                    showGuideAlert(check.message);
+                    return;
+                }
+            }
+            hideGuideAlert();
+        }
+
         generateBtn.addEventListener('click', generateDocuments);
         generateBtnTop.addEventListener('click', generateDocuments);
+
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Enter' && !event.target.classList.contains('editable-cell')) {
                 event.preventDefault();
@@ -412,40 +455,50 @@
                 }
             }
         });
+
         document.addEventListener('DOMContentLoaded', () => {
             initTable();
             showGuideText(0);
+
             tableBody.addEventListener('focusin', (event) => {
                 const cell = event.target;
-                if (!tutorialActive || !cell.classList.contains('editable-cell')) return;
+                if (!cell.classList.contains('editable-cell')) return;
+
                 const parentRow = cell.closest('tr');
-                if (parentRow !== tableBody.firstElementChild) {
+                if (tutorialActive && parentRow !== tableBody.firstElementChild) {
                     endTutorial();
-                    return;
                 }
+
+                if (!tutorialActive) return;
+
                 const cellIndex = cell.closest('td').cellIndex;
                 if(cellIndex === 3) showGuideText(2);
                 if(cellIndex === 4) showGuideText(4);
                 if(cellIndex === 9) showGuideText(5);
             });
+
             tableBody.addEventListener('keydown', (event) => {
                 const cell = event.target;
                 if (!cell.classList.contains('editable-cell')) return; 
                 const isCharKey = event.key.length === 1 && !event.ctrlKey && !event.metaKey;
                 const cellIndex = cell.closest('td').cellIndex;
+                
                 if (event.key === 'Tab' && cell.classList.contains('invalid')) {
                     event.preventDefault();
                     return;
                 }
+                
                 const maxLengths = { 2: 6, 5: 9, 6: 10, 7: 10, 8: 12 }; // ColIndex: MaxLength
                 if (maxLengths[cellIndex] && cell.textContent.length >= maxLengths[cellIndex] && isCharKey && window.getSelection().toString().length === 0) {
                     event.preventDefault();
                 }
+
                 if ((cellIndex === 2 || cellIndex === 5) && !/^\d$/.test(event.key) && isCharKey) event.preventDefault();
                 else if ((cellIndex === 6 || cellIndex === 7) && !/^[\d.]$/.test(event.key) && isCharKey) event.preventDefault();
                 else if (cellIndex === 8 && !/^[\d,]*$/.test(event.key) && isCharKey) event.preventDefault();
                 else if (cellIndex === 9 && !/^[А-ЯІЇЄҐа-яіїєґ' -]$/u.test(event.key) && isCharKey) event.preventDefault();
-                if (cellIndex === 3) {
+                
+                if (cellIndex === 3) { 
                     const validTypes = ['винахід', 'корисну модель', 'торговельну марку'];
                     if (event.key === 'Backspace' || event.key === 'Delete') {
                         event.preventDefault(); cell.textContent = ''; cell.classList.remove('invalid');
@@ -453,21 +506,22 @@
                     } else if (validTypes.includes(cell.textContent.trim()) && isCharKey) event.preventDefault();
                 }
             });
+
             tableBody.addEventListener('input', (event) => {
                 const cell = event.target;
                 if (!cell.classList.contains('editable-cell')) return; 
-                hideGuideAlert(); // Clear any error message on new input
+
                 const parentTd = cell.closest('td');
                 const parentRow = cell.closest('tr');
                 if (!parentTd || !parentRow) return;
                 const cellIndex = parentTd.cellIndex;
+
                 if (cellIndex === 2) validateNumberUniqueness();
                 if (cellIndex === 3) {
                     const text = cell.textContent.trim().toLowerCase();
                     const typeMap = { 'в': 'винахід', 'к': 'корисну модель', 'т': 'торговельну марку' };
                     if (text.length === 1 && typeMap[text]) {
                         cell.textContent = typeMap[text];
-                        // Move cursor to end
                         const range = document.createRange();
                         const sel = window.getSelection();
                         range.selectNodeContents(cell);
@@ -484,6 +538,7 @@
                 if (cellIndex === 6 || cellIndex === 7) validateDateRow(parentRow);
                 if (cellIndex === 8) validateCostRow(cell);
                 if (cellIndex === 9) validatePersonName(cell);
+
                 if (cellIndex === 8 || cellIndex === 6 || cellIndex === 7) {
                     const separator = (cellIndex === 8) ? ',' : '.';
                     const wrongSeparator = (separator === ',') ? '.' : ',';
@@ -492,20 +547,24 @@
                         const offset = selection.getRangeAt(0).startOffset;
                         cell.textContent = cell.textContent.replace(new RegExp(`\\${wrongSeparator}`, 'g'), separator);
                         if (cell.firstChild) {
-                             const newOffset = Math.min(offset, cell.firstChild.length);
-                             const newRange = document.createRange();
-                             newRange.setStart(cell.firstChild, newOffset);
-                             newRange.collapse(true);
-                             selection.removeAllRanges();
-                             selection.addRange(newRange);
+                            const newOffset = Math.min(offset, cell.firstChild.length);
+                            const newRange = document.createRange();
+                            newRange.setStart(cell.firstChild, newOffset);
+                            newRange.collapse(true);
+                            selection.removeAllRanges();
+                            selection.addRange(newRange);
                         }
                     }
                 }
+                
+                checkAndShowLiveError(parentRow);
+
                 if (parentRow === tableBody.lastElementChild && tableBody.rows.length < MAX_ROWS_COUNT) {
                     addNewRow();
                 }
                 updateStatus();
             });
+
             const firstRowCells = tableBody.querySelectorAll('tr:first-child .editable-cell');
             const placeholders = [ '123456', 'в/к/т', 'МАШИНА ЧАСУ', '123456789', '01.01.2000', '31.12.2020', '1000,00', 'Тарас ШЕВЧЕНКО'];
             firstRowCells.forEach((cell, index) => {
