@@ -458,14 +458,20 @@
         generateBtn.addEventListener('click', generateDocuments);
         generateBtnTop.addEventListener('click', generateDocuments);
 
-        // Add keybinding for generation
+        // Add keybindings for generation (Enter) and to exit editing (Esc)
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
+                // Do not generate if the user is currently typing in a cell
                 if (document.activeElement.classList.contains('editable-cell')) {
                     return; 
                 }
                 event.preventDefault();
                 generateDocuments();
+            } else if (event.key === 'Escape' || event.key === 'Esc') { // 'Esc' for older browsers
+                // If the user is in a cell, remove focus from it.
+                if (document.activeElement.classList.contains('editable-cell')) {
+                    document.activeElement.blur();
+                }
             }
         });
         
