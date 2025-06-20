@@ -335,10 +335,19 @@
             const date = new Date(year, month - 1, day);
             return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
         }
+        
+        function isValidCostString(costStr) {
+            return /^\d{1,9},\d{2}$/.test(costStr);
+        }
 
         function parseDate(dateStr) {
             const parts = dateStr.split('.');
             return new Date(parts[2], parts[1] - 1, parts[0]);
+        }
+        
+        function validateCostRow(cell) {
+            const costStr = cell.textContent.trim();
+            cell.classList.toggle('invalid', costStr !== '' && !isValidCostString(costStr));
         }
 
         function validateDateRow(row) {
@@ -474,6 +483,13 @@
                 return;
             }
 
+            const invalidCostCells = tableBody.querySelectorAll('td:nth-child(9) .editable-cell.invalid');
+            if (invalidCostCells.length > 0) {
+                showNotification('Помилка: Виправте поле "Вартість". Формат до 9 цифр, кома, 2 цифри (напр. 12345.67).', false);
+                invalidCostCells[0].focus();
+                return;
+            }
+
             const data = getTableData();
             if (data.length === 0) {
                 showNotification('Помилка: Немає повністю заповнених рядків для генерації.', false);
@@ -529,14 +545,31 @@
 
             tableBody.addEventListener('keydown', (event) => {
                 const cell = event.target;
-                // Check if the event is on an editable cell in the "Тип" column
-                if (cell.classList.contains('editable-cell') && cell.closest('td').cellIndex === 3) {
-                    // If Backspace or Delete is pressed, clear the cell content
+                if (!cell.classList.contains('editable-cell')) return;
+
+                const cellIndex = cell.closest('td').cellIndex;
+                
+                // Allow only numbers for "Номер" and "Номер НД"
+                if (cellIndex === 2 || cellIndex === 5) {
+                    if (!/^\d$/.test(event.key) && event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
+                       event.preventDefault();
+                    }
+                }
+                
+                // Allow numbers and specific separators for date and cost fields
+                if (cellIndex === 6 || cellIndex === 7 || cellIndex === 8) {
+                     if (!/^[\d.,;:/|]$/.test(event.key) && event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
+                       event.preventDefault();
+                    }
+                }
+
+                // Special handling for "Тип" field to allow easy deletion
+                if (cellIndex === 3) {
                     if (event.key === 'Backspace' || event.key === 'Delete') {
-                        event.preventDefault(); // Stop the default character deletion
-                        cell.textContent = ''; // Clear the entire cell
-                        cell.classList.remove('invalid'); // Remove invalid state
-                        updateStatus(); // Update the row/table status
+                        event.preventDefault(); 
+                        cell.textContent = ''; 
+                        cell.classList.remove('invalid');
+                        updateStatus();
                     }
                 }
             });
@@ -589,12 +622,16 @@
                     cell.classList.toggle('invalid', text !== '' && !/^\d{9}$/.test(text));
                 }
 
-                // Validate and format date cells - cellIndex 6 and 7
-                const isDateCell = cellIndex === 6 || cellIndex === 7;
-                if (isDateCell) {
-                    // Auto-replace common separators with a period
+                // Auto-replace separators and validate for date/cost fields
+                if (cellIndex === 6 || cellIndex === 7 || cellIndex === 8) {
                     const originalText = cell.textContent;
-                    const correctedText = originalText.replace(/[,/|;]/g, '.');
+                    let correctedText;
+                    if (cellIndex === 8) { // Cost field
+                       correctedText = originalText.replace(/[.;:/|]/g, ',');
+                    } else { // Date fields
+                       correctedText = originalText.replace(/[,/|;]/g, '.');
+                    }
+
                     if (originalText !== correctedText) {
                         const selection = window.getSelection();
                         const range = selection.getRangeAt(0);
@@ -609,8 +646,16 @@
                             selection.addRange(newRange);
                         }
                     }
-                    validateDateRow(parentRow);
                 }
+                
+                // Perform validation
+                if (cellIndex === 6 || cellIndex === 7) {
+                     validateDateRow(parentRow);
+                }
+                if (cellIndex === 8) {
+                     validateCostRow(cell);
+                }
+
 
                 if (parentRow === tableBody.lastElementChild && tableBody.rows.length < MAX_ROWS_COUNT) {
                     addNewRow();
