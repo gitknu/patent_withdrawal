@@ -3,313 +3,599 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Генератор документів</title>
-    <!-- Tailwind CSS for styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Required JavaScript libraries for DOCX generation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.47.1/docxtemplater.js"></script>
+    <title>Генератор Документів</title>
+    <!-- Required JavaScript libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.45.0/docxtemplater.js"></script>
     <script src="https://unpkg.com/pizzip@3.1.6/dist/pizzip.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.8/FileSaver.js"></script>
     <script src="https://unpkg.com/pizzip@3.1.6/dist/pizzip-utils.js"></script>
-
     <style>
-        /* Custom styles for a better look and feel */
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --secondary: #f0f4f8;
+            --success: #22c55e;
+            --error: #ef4444;
+            --text: #1f2937;
+            --light-text: #6b7280;
+            --border: #e5e7eb;
+            --card-bg: #ffffff;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
         body {
-            font-family: 'Inter', sans-serif;
-        }
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        
-        /* Style for editable cells */
-        [contenteditable]:focus {
-            outline: 2px solid #3b82f6; /* blue-500 */
-            background-color: #eff6ff; /* blue-50 */
+            background: linear-gradient(to bottom, #f0f4f8, #e2e8f0);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 20px;
+            min-height: 100vh;
         }
         
-        /* Basic table styling */
-        th, td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid #e5e7eb; /* gray-200 */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            border-bottom: 2px solid var(--primary);
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            color: var(--primary);
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .subtitle {
+            color: var(--light-text);
+            font-size: 1.1rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        
+        .status-item {
+            text-align: center;
+            flex: 1;
+            padding: 10px;
+        }
+        
+        .status-value {
+            font-weight: 700;
+            font-size: 1.8rem;
+            color: var(--primary);
+        }
+        
+        .status-label {
+            font-size: 0.9rem;
+            color: var(--light-text);
+        }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        
+        .card-title {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: var(--primary);
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--primary);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            background: white;
         }
         
         th {
-            background-color: #f9fafb; /* gray-50 */
+            background: var(--primary);
+            color: white;
+            text-align: left;
+            padding: 12px 15px;
             font-weight: 600;
-            color: #374151; /* gray-700 */
         }
-
-        tbody tr:hover {
-            background-color: #f9fafb; /* gray-50 */
+        
+        td {
+            padding: 10px 15px;
+            border-bottom: 1px solid var(--border);
         }
-
-        /* Simple fade-in animation for modals */
-        .modal-fade-enter {
+        
+        .editable-cell {
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            min-height: 38px;
+            outline: none;
+            transition: all 0.3s;
+        }
+        
+        .editable-cell:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+            background: #f8fafc;
+        }
+        
+        .btn-container {
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            background: linear-gradient(to right, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            padding: 14px 35px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(79, 70, 229, 0.3);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(79, 70, 229, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(1px);
+        }
+        
+        .placeholder-info {
+            background: #f9fafb;
+            border-left: 4px solid var(--primary);
+            padding: 20px;
+            border-radius: 0 8px 8px 0;
+            margin: 20px 0;
+        }
+        
+        .placeholder-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .placeholder-item {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .placeholder-tag {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+        
+        .placeholder-label {
+            color: var(--light-text);
+            font-size: 0.9rem;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            color: white;
+            z-index: 1000;
             opacity: 0;
-            transform: scale(0.95);
+            transform: translateX(100%);
+            transition: all 0.3s;
+            max-width: 350px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
-        .modal-fade-enter-active {
+        
+        .notification.show {
             opacity: 1;
-            transform: scale(1);
-            transition: all 0.2s ease-out;
+            transform: translateX(0);
+        }
+        
+        .notification.success {
+            background: linear-gradient(to right, var(--success), #16a34a);
+        }
+        
+        .notification.error {
+            background: linear-gradient(to right, var(--error), #dc2626);
+        }
+        
+        .loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        
+        .loader.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(79, 70, 229, 0.2);
+            border-top: 5px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loader-text {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+        
+        @media (max-width: 768px) {
+            .placeholder-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .status-bar {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .status-value {
+                font-size: 1.5rem;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
         }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
-    <!-- Main container -->
-    <div class="w-full max-w-7xl mx-auto bg-white rounded-xl shadow-lg p-6 md:p-8">
-        <!-- Header Section -->
-        <header class="flex items-center justify-between mb-6 border-b pb-4">
-            <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Генератор документів</h1>
-            <button id="generate-btn" class="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-sm flex items-center">
-                <svg id="generate-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L6.293 6.707z" clip-rule="evenodd" />
-                </svg>
-                <svg id="loader-icon" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span id="btn-text">Згенерувати</span>
-            </button>
+<body>
+    <div class="container">
+        <header>
+            <h1>Генератор Документів</h1>
+            <p class="subtitle">Заповніть таблицю даними для генерації DOCX файлів</p>
         </header>
         
-        <!-- Instructional Text -->
-        <p class="text-gray-600 mb-6">
-            Заповніть таблицю нижче. Кожен заповнений рядок буде використано для створення окремого DOCX-файлу на основі шаблону. Порожні рядки будуть проігноровані.
-        </p>
-
-        <!-- Data Table -->
-        <div class="overflow-x-auto rounded-lg border">
-            <table class="w-full text-sm text-left text-gray-500">
-                <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-value" id="filled-rows">0/10</div>
+                <div class="status-label">Заповнено рядків</div>
+            </div>
+            <div class="status-item">
+                <div class="status-value" id="to-generate">0</div>
+                <div class="status-label">Буде згенеровано</div>
+            </div>
+            <div class="status-item">
+                <div class="status-value" id="status">Готово</div>
+                <div class="status-label">Статус</div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2 class="card-title">Таблиця даних</h2>
+            <table>
+                <thead>
                     <tr>
-                        <th class="px-4 py-3">Номер</th>
-                        <th class="px-4 py-3">Тип</th>
-                        <th class="px-4 py-3">Назва</th>
-                        <th class="px-4 py-3">Номер НД</th>
-                        <th class="px-4 py-3">Початок</th>
-                        <th class="px-4 py-3">Кінець</th>
-                        <th class="px-4 py-3">Вартість</th>
-                        <th class="px-4 py-3">Підписує</th>
+                        <th>Номер</th>
+                        <th>Тип</th>
+                        <th>Назва</th>
+                        <th>Номер НД</th>
+                        <th>Початок</th>
+                        <th>Кінець</th>
+                        <th>Вартість</th>
+                        <th>Підписує</th>
                     </tr>
                 </thead>
-                <tbody id="data-table-body">
-                    <!-- Rows are now created dynamically by the main script -->
+                <tbody id="table-body">
+                    <!-- Rows will be added here -->
                 </tbody>
             </table>
-        </div>
-    </div>
-    
-    <!-- Error Modal -->
-    <div id="error-modal" class="fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center p-4 z-50 hidden modal-fade-enter">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-            <div class="flex items-start">
-                <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                    <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            
+            <div class="btn-container">
+                <button id="generate-btn" class="btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                        <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
                     </svg>
-                </div>
-                <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">Помилка валідації</h3>
-                    <div class="mt-2">
-                        <p id="modal-message" class="text-sm text-gray-500">Some message here.</p>
-                    </div>
-                </div>
-            </div>
-            <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                <button id="close-modal-btn" type="button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
-                    Зрозуміло
+                    Згенерувати DOCX файли
                 </button>
             </div>
         </div>
+        
+        <div class="placeholder-info">
+            <h3>Теги шаблону</h3>
+            <p>Ці теги будуть замінені даними з таблиці:</p>
+            <div class="placeholder-grid">
+                <div class="placeholder-item">
+                    <div class="placeholder-tag">&lt;num_p&gt;</div>
+                    <div class="placeholder-label">Номер</div>
+                </div>
+                <div class="placeholder-item">
+                    <div class="placeholder-tag">&lt;type&gt;</div>
+                    <div class="placeholder-label">Тип</div>
+                </div>
+                <div class="placeholder-item">
+                    <div class="placeholder-tag">&lt;name&gt;</div>
+                    <div class="placeholder-label">Назва</div>
+                </div>
+                <div class="placeholder-item">
+                    <div class="placeholder-tag">&lt;num_db&gt;</div>
+                    <div class="placeholder-label">Номер НД</div>
+                </div>
+                <div class="placeholder-item">
+                    <div class="placeholder-tag">&lt;start&gt;</div>
+                    <div class="placeholder-label">Початок</div>
+                </div>
+                <div class="placeholder-item">
+                    <div class="placeholder-tag">&lt;end&gt;</div>
+                    <div class="placeholder-label">Кінець</div>
+                </div>
+                <div class="placeholder-item">
+                    <div class="placeholder-tag">&lt;value&gt;</div>
+                    <div class="placeholder-label">Вартість</div>
+                </div>
+                <div class="placeholder-item">
+                    <div class="placeholder-tag">&lt;person&gt;</div>
+                    <div class="placeholder-label">Підписує</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="notification" id="notification"></div>
+        <div class="loader" id="loader">
+            <div class="spinner"></div>
+            <div class="loader-text">Генеруємо документи...</div>
+        </div>
     </div>
 
-
     <script>
-        // --- DOM Elements ---
+        // Configuration
+        const TEMPLATE_URL = 'https://gitknu.github.io/patent_withdrawal/input_patent_withdrawal.docx';
+        const PLACEHOLDERS = ['num_p', 'type', 'name', 'num_db', 'start', 'end', 'value', 'person'];
+        const ROWS_COUNT = 10;
+        
+        // DOM Elements
+        const tableBody = document.getElementById('table-body');
         const generateBtn = document.getElementById('generate-btn');
-        const tableBody = document.getElementById('data-table-body');
-        const loaderIcon = document.getElementById('loader-icon');
-        const generateIcon = document.getElementById('generate-icon');
-        const btnText = document.getElementById('btn-text');
-        const errorModal = document.getElementById('error-modal');
-        const modalMessage = document.getElementById('modal-message');
-        const closeModalBtn = document.getElementById('close-modal-btn');
-
-        // --- Initialize Table ---
-        // Creates the initial 10 empty rows for the user to fill in.
-        const initializeTable = () => {
-            for (let i = 0; i < 10; i++) {
-                const row = document.createElement('tr');
-                row.className = 'bg-white border-b';
-                for (let j = 0; j < 8; j++) {
-                    const cell = document.createElement('td');
-                    cell.setAttribute('contenteditable', 'true');
-                    cell.className = 'px-4 py-2';
-                    row.appendChild(cell);
+        const notification = document.getElementById('notification');
+        const filledRowsEl = document.getElementById('filled-rows');
+        const toGenerateEl = document.getElementById('to-generate');
+        const statusEl = document.getElementById('status');
+        const loader = document.getElementById('loader');
+        
+        // Initialize table
+        function initTable() {
+            let html = '';
+            for (let i = 0; i < ROWS_COUNT; i++) {
+                html += '<tr>';
+                for (let j = 0; j < PLACEHOLDERS.length; j++) {
+                    html += `<td><div class="editable-cell" contenteditable="true"></div></td>`;
                 }
-                tableBody.appendChild(row);
+                html += '</tr>';
             }
-        };
-        initializeTable(); // Call the function to build the table on page load
+            tableBody.innerHTML = html;
+            updateStatus();
+            
+            // Add input event listeners
+            tableBody.addEventListener('input', updateStatus);
+        }
         
-        // --- Constants ---
-        const DOCX_TEMPLATE_URL = 'https://cors-anywhere.herokuapp.com/https://gitknu.github.io/patent_withdrawal/input_patent_withdrawal.docx';
-        // A CORS proxy is used to prevent cross-origin errors when fetching the template in a browser.
-        // For production, it's better to host the template on the same domain or configure CORS on the server.
-        
-        const TEMPLATE_KEYS = ['num_p', 'type', 'name', 'num_db', 'start', 'end', 'value', 'person'];
-
-        // --- Utility Functions ---
-
-        /**
-         * Fetches a file from a URL as binary content.
-         * @param {string} url The URL of the file to fetch.
-         * @param {function} callback The function to call with the result (error, content).
-         */
-        const loadFile = (url, callback) => {
-            PizZipUtils.getBinaryContent(url, (error, content) => {
-                if (error) {
-                    // Handle network errors or CORS issues
-                    let friendlyError = 'Не вдалося завантажити шаблон DOCX. ';
-                    if (error.message.includes('HTTP Status')) {
-                        friendlyError += `Сталася помилка мережі (статус: ${error.message.split(' ').pop()}). Перевірте своє інтернет-з'єднання та доступ до URL шаблону. Можливо, потрібен CORS-проксі.`;
+        // Update status display
+        function updateStatus() {
+            const rows = tableBody.querySelectorAll('tr');
+            let filledCount = 0;
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('.editable-cell');
+                let hasData = false;
+                let allFilled = true;
+                
+                cells.forEach(cell => {
+                    if (cell.textContent.trim() !== '') {
+                        hasData = true;
                     } else {
-                        friendlyError += `Перевірте консоль браузера для отримання детальної інформації про помилку.`;
+                        allFilled = false;
                     }
-                    console.error("loadFile error:", error);
-                    return callback(new Error(friendlyError), null);
-                }
-                return callback(null, content);
-            });
-        };
-
-        /**
-         * Shows or hides the loading state on the generate button.
-         * @param {boolean} isLoading - True to show loader, false to hide.
-         */
-        const setLoadingState = (isLoading) => {
-            if (isLoading) {
-                generateBtn.disabled = true;
-                generateBtn.classList.add('cursor-not-allowed', 'opacity-75');
-                loaderIcon.classList.remove('hidden');
-                generateIcon.classList.add('hidden');
-                btnText.textContent = 'Генерація...';
-            } else {
-                generateBtn.disabled = false;
-                generateBtn.classList.remove('cursor-not-allowed', 'opacity-75');
-                loaderIcon.classList.add('hidden');
-                generateIcon.classList.remove('hidden');
-                btnText.textContent = 'Згенерувати';
-            }
-        };
-        
-        /**
-         * Shows the error modal with a specific message.
-         * @param {string} message - The error message to display.
-         */
-        const showErrorModal = (message) => {
-            modalMessage.textContent = message;
-            errorModal.classList.remove('hidden');
-            // Add animation class
-            requestAnimationFrame(() => {
-                errorModal.classList.add('modal-fade-enter-active');
-            });
-        };
-
-        /**
-         * Hides the error modal.
-         */
-        const hideErrorModal = () => {
-            errorModal.classList.remove('modal-fade-enter-active');
-            errorModal.classList.add('hidden');
-        };
-
-        /**
-         * Main function to generate documents.
-         */
-        const generateDocuments = () => {
-            setLoadingState(true);
-
-            // 1. Collect and validate data from the table
-            const rows = Array.from(tableBody.querySelectorAll('tr'));
-            const dataToProcess = [];
-
-            for (let i = 0; i < rows.length; i++) {
-                const cells = Array.from(rows[i].querySelectorAll('td'));
-                const rowData = cells.map(cell => cell.textContent.trim());
-
-                const isRowEmpty = rowData.every(cellText => cellText === '');
-                if (isRowEmpty) {
-                    continue; // Skip empty rows
-                }
-
-                const isRowIncomplete = rowData.some(cellText => cellText === '');
-                if (isRowIncomplete) {
-                    showErrorModal(`Помилка в рядку ${i + 1}: всі стовпці повинні бути заповнені, якщо рядок не порожній.`);
-                    setLoadingState(false);
-                    return; // Stop processing
-                }
-
-                const docData = {};
-                TEMPLATE_KEYS.forEach((key, index) => {
-                    docData[key] = rowData[index];
                 });
-                dataToProcess.push(docData);
-            }
-
-            if (dataToProcess.length === 0) {
-                showErrorModal('Не знайдено даних для генерації. Будь ласка, заповніть хоча б один рядок у таблиці.');
-                setLoadingState(false);
+                
+                if (hasData && allFilled) {
+                    filledCount++;
+                }
+            });
+            
+            filledRowsEl.textContent = `${filledCount}/${ROWS_COUNT}`;
+            toGenerateEl.textContent = filledCount;
+            statusEl.textContent = filledCount > 0 ? 'Готово до генерації' : 'Очікує вводу даних';
+            statusEl.style.color = filledCount > 0 ? '#22c55e' : '#6b7280';
+        }
+        
+        // Show notification
+        function showNotification(message, isSuccess = true) {
+            notification.textContent = message;
+            notification.className = `notification ${isSuccess ? 'success' : 'error'} show`;
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 5000);
+        }
+        
+        // Get table data
+        function getTableData() {
+            const data = [];
+            const rows = tableBody.querySelectorAll('tr');
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('.editable-cell');
+                const rowData = {};
+                let hasData = false;
+                let allFilled = true;
+                
+                cells.forEach((cell, index) => {
+                    const value = cell.textContent.trim();
+                    rowData[PLACEHOLDERS[index]] = value;
+                    
+                    if (value !== '') hasData = true;
+                    if (value === '') allFilled = false;
+                });
+                
+                if (hasData && allFilled) {
+                    data.push(rowData);
+                }
+            });
+            
+            return data;
+        }
+        
+        // Generate documents
+        async function generateDocuments() {
+            const data = getTableData();
+            
+            if (data.length === 0) {
+                showNotification('Помилка: Немає даних для генерації. Заповніть хоча б один рядок повністю.', false);
                 return;
             }
-
-            // 2. Load the template and generate files
-            loadFile(DOCX_TEMPLATE_URL, (error, content) => {
-                if (error) {
-                    showErrorModal(error.message);
-                    setLoadingState(false);
-                    return;
-                }
-
-                try {
-                    // 3. Loop through each valid data row and generate a document
-                    dataToProcess.forEach((data, index) => {
-                        const zip = new PizZip(content);
-                        const doc = new docxtemplater(zip, {
-                            paragraphLoop: true,
-                            linebreaks: true,
-                        });
-                        
-                        // Set the template data
-                        doc.setData(data);
-                        
-                        // Render the document
-                        doc.render();
-
-                        // Generate the output as a blob
-                        const out = doc.getZip().generate({
-                            type: "blob",
-                            mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        });
-                        
-                        // Use FileSaver to trigger download
-                        // Use the value of 'num_p' for a unique filename
-                        const fileName = `document_${data.num_p || index + 1}.docx`;
-                        saveAs(out, fileName);
+            
+            try {
+                // Show loader and update status
+                loader.classList.add('active');
+                statusEl.textContent = 'Генеруємо...';
+                statusEl.style.color = '#4f46e5';
+                
+                // Load template
+                const templateContent = await new Promise((resolve, reject) => {
+                    PizZipUtils.getBinaryContent(TEMPLATE_URL, (error, content) => {
+                        if (error) {
+                            reject(new Error(`Помилка завантаження шаблону: ${error.message}`));
+                        } else {
+                            resolve(content);
+                        }
                     });
-                } catch (renderError) {
-                    console.error("Docxtemplater render error:", renderError);
-                    showErrorModal(`Помилка під час створення DOCX: ${renderError.message}. Перевірте, чи відповідають теги в шаблоні (${TEMPLATE_KEYS.join(', ')}) очікуваним.`);
-                } finally {
-                    // 4. Reset loading state after completion or error
-                    setLoadingState(false);
+                });
+                
+                // Generate each document
+                for (const [index, rowData] of data.entries()) {
+                    // Create new document instance
+                    const zip = new PizZip(templateContent);
+                    const doc = new docxtemplater();
+                    doc.loadZip(zip);
+                    
+                    // Configure to use angle brackets as delimiters
+                    doc.setOptions({
+                        delimiters: {
+                            start: '<',
+                            end: '>'
+                        }
+                    });
+                    
+                    // Set data and render
+                    doc.setData(rowData);
+                    doc.render();
+                    
+                    // Generate the output
+                    const out = doc.getZip().generate({
+                        type: 'blob',
+                        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                    });
+                    
+                    // Create filename
+                    const filename = `Документ_${index + 1}_${rowData.name.substring(0, 20) || 'без_назви'}.docx`;
+                    
+                    // Save the document
+                    saveAs(out, filename);
                 }
-            });
-        };
-
-        // --- Event Listeners ---
+                
+                showNotification(`Успішно згенеровано ${data.length} документів!`);
+                statusEl.textContent = 'Готово';
+                statusEl.style.color = '#22c55e';
+                
+            } catch (error) {
+                console.error('Generation error:', error);
+                showNotification(`Помилка: ${error.message || 'Не вдалося згенерувати документи'}`, false);
+                statusEl.textContent = 'Помилка';
+                statusEl.style.color = '#ef4444';
+            } finally {
+                // Hide loader
+                loader.classList.remove('active');
+            }
+        }
+        
+        // Event listeners
         generateBtn.addEventListener('click', generateDocuments);
-        closeModalBtn.addEventListener('click', hideErrorModal);
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', initTable);
+        
+        // Add sample data for testing
+        window.addEventListener('load', () => {
+            // Add sample data to first row for testing
+            const firstRow = tableBody.querySelector('tr');
+            if (firstRow) {
+                const cells = firstRow.querySelectorAll('.editable-cell');
+                if (cells.length >= 8) {
+                    cells[0].textContent = '001';
+                    cells[1].textContent = 'Тип A';
+                    cells[2].textContent = 'Назва документа';
+                    cells[3].textContent = 'НД-123';
+                    cells[4].textContent = '01.01.2023';
+                    cells[5].textContent = '31.12.2023';
+                    cells[6].textContent = '1000 грн';
+                    cells[7].textContent = 'Іванов І.І.';
+                    updateStatus();
+                }
+            }
+        });
     </script>
 </body>
 </html>
