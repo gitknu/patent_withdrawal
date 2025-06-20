@@ -258,7 +258,7 @@
                             <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
                             <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
                         </svg>
-                        Згенерувати
+                        Згенерувати (Enter)
                     </button>
                 </div>
             </div>
@@ -395,6 +395,12 @@
                 addNewRow();
             }
             updateStatus();
+            
+            // Enhancement: Focus on the first cell on load
+            const firstCell = tableBody.querySelector('tr:first-child .editable-cell');
+            if (firstCell) {
+                firstCell.focus();
+            }
         }
 
         function updateStatus() {
@@ -485,7 +491,7 @@
 
             const invalidCostCells = tableBody.querySelectorAll('td:nth-child(9) .editable-cell.invalid');
             if (invalidCostCells.length > 0) {
-                showNotification('Помилка: Виправте поле "Вартість". Формат до 9 цифр, кома, 2 цифри (напр. 12345.67).', false);
+                showNotification('Помилка: Виправте поле "Вартість". Формат до 9 цифр, кома, 2 цифри (напр. 12345,67).', false);
                 invalidCostCells[0].focus();
                 return;
             }
@@ -547,6 +553,12 @@
                 const cell = event.target;
                 if (!cell.classList.contains('editable-cell')) return;
 
+                // Enhancement: Forbid pressing Tab until the active field is valid
+                if (event.key === 'Tab' && cell.classList.contains('invalid')) {
+                    event.preventDefault();
+                    return;
+                }
+
                 const cellIndex = cell.closest('td').cellIndex;
                 
                 // Allow only numbers for "Номер" and "Номер НД"
@@ -559,8 +571,8 @@
                 // Allow numbers and specific separators for date and cost fields
                 if (cellIndex === 6 || cellIndex === 7 || cellIndex === 8) {
                      if (!/^[\d.,;:/|]$/.test(event.key) && event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
-                       event.preventDefault();
-                    }
+                        event.preventDefault();
+                     }
                 }
 
                 // Special handling for "Тип" field to allow easy deletion
@@ -650,10 +662,10 @@
                 
                 // Perform validation
                 if (cellIndex === 6 || cellIndex === 7) {
-                     validateDateRow(parentRow);
+                      validateDateRow(parentRow);
                 }
                 if (cellIndex === 8) {
-                     validateCostRow(cell);
+                      validateCostRow(cell);
                 }
 
 
