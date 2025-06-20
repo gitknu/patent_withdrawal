@@ -44,6 +44,7 @@
             padding: 20px 0;
             margin-bottom: 30px;
             border-bottom: 2px solid var(--primary);
+            position: relative;
         }
         h1 {
             font-size: 2.5rem;
@@ -255,6 +256,16 @@
             font-weight: 600;
             color: var(--text);
         }
+        .top-generate-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+        }
+        .top-generate-btn .btn {
+            padding: 10px 25px;
+            font-size: 1rem;
+        }
         @media (max-width: 768px) {
             .placeholder-grid {
                 grid-template-columns: 1fr 1fr;
@@ -269,6 +280,16 @@
             h1 {
                 font-size: 2rem;
             }
+            .top-generate-btn {
+                position: static;
+                margin-top: 15px;
+                text-align: center;
+                width: 100%;
+            }
+            .top-generate-btn .btn {
+                width: 100%;
+                padding: 12px 20px;
+            }
         }
     </style>
 </head>
@@ -276,7 +297,16 @@
     <div class="container">
         <header>
             <h1>Генератор Документів</h1>
-            <p class="subtitle">Заповніть таблицю даними для генерації DOCX файлів</p>
+            <p class="subtitle">Для швидкого переходу на нове поле тисніть TAB. Для генерації Enter</p>
+            <div class="top-generate-btn">
+                <button id="generate-btn-top" class="btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                        <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                    </svg>
+                    Згенерувати
+                </button>
+            </div>
         </header>
         <div class="status-bar">
             <div class="status-item">
@@ -332,6 +362,7 @@
         const ROWS_COUNT = 10;
         const tableBody = document.getElementById('table-body');
         const generateBtn = document.getElementById('generate-btn');
+        const generateBtnTop = document.getElementById('generate-btn-top');
         const notification = document.getElementById('notification');
         const filledRowsEl = document.getElementById('filled-rows');
         const toGenerateEl = document.getElementById('to-generate');
@@ -390,8 +421,7 @@
                 let allFilled = true;
                 cells.forEach((cell, index) => {
                     const value = cell.textContent.trim();
-                    rowData[PLACEHOLDERS[index]] = value;
-                    
+                    rowData[PLACEHOLDERS[index]] = value; 
                     if (value !== '') hasData = true;
                     if (value === '') allFilled = false;
                 });
@@ -438,7 +468,7 @@
                     });
                     const filename = `Документ_${index + 1}_${rowData.name.substring(0, 20) || 'без_назви'}.docx`;
                     saveAs(out, filename);
-                }
+                } 
                 showNotification(`Успішно згенеровано ${data.length} документів!`);
                 statusEl.textContent = 'Готово';
                 statusEl.style.color = '#22c55e';
@@ -452,6 +482,7 @@
             }
         }
         generateBtn.addEventListener('click', generateDocuments);
+        generateBtnTop.addEventListener('click', generateDocuments);
         document.addEventListener('DOMContentLoaded', initTable);
         window.addEventListener('load', () => {
             const firstRow = tableBody.querySelector('tr');
