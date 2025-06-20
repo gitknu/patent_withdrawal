@@ -18,6 +18,8 @@
             --success: #28a745;
             --error: #dc3545;
             --grey: #adb5bd;
+            --guide-bg: #eef4ff;
+            --guide-text: #0056b3;
         }
         * {
             margin: 0;
@@ -39,6 +41,7 @@
             padding-bottom: 20px;
             margin-bottom: 20px;
             border-bottom: 1px solid var(--border-color);
+            position: relative; /* For guide positioning */
         }
         .header-main {
             display: flex;
@@ -67,12 +70,42 @@
             font-size: 2rem;
             color: var(--text-color);
             text-align: center;
+            margin-bottom: 8px; /* Adjusted margin */
         }
         .subtitle {
             color: var(--light-text);
             font-size: 1rem;
             text-align: center;
+            min-height: 40px; /* Reserve space for guide text */
         }
+         /* --- Interactive Guide Styles --- */
+        .guide-container {
+            text-align: center;
+            padding-top: 5px;
+            min-height: 24px; /* Reserve space to prevent layout shift */
+        }
+        .guide-text {
+            display: inline-block;
+            background-color: var(--guide-bg);
+            color: var(--guide-text);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+            max-width: 90%;
+        }
+        .guide-text.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .final-hint {
+            color: var(--light-text);
+            font-weight: 500;
+        }
+
         .card {
             background: white;
             border-radius: 5px;
@@ -263,7 +296,9 @@
                 </div>
             </div>
             <h1>Генератор актів списання</h1>
-            <p class="subtitle">Для швидкого переходу на нове поле тисніть TAB. Для генерації Enter</p>
+            <div class="guide-container">
+                <span id="guide-text-element" class="guide-text"></span>
+            </div>
         </header>
 
         <div class="card">
@@ -320,6 +355,45 @@
         const filledRowsEl = document.getElementById('filled-rows');
         const toGenerateEl = document.getElementById('to-generate');
         const loader = document.getElementById('loader');
+        const guideTextElement = document.getElementById('guide-text-element');
+
+        // --- Interactive Guide Logic ---
+        let tutorialActive = true;
+        let tutorialStep = 0;
+
+        const tutorialSteps = [
+            { text: "Введіть у першому полі 6 цифр номеру патенту", trigger: 'start' },
+            { text: "Чудово! Натисніть Tab для переходу далі", trigger: 'num_p_valid' },
+            { text: "Тепер введіть 'в', 'к' або 'т' для вибору типу", trigger: 'type_focus' },
+            { text: "Добре. Для навігації використовуйте Tab та Shift + Tab", trigger: 'type_valid' },
+            { text: "Заповніть решту полів у цьому рядку", trigger: 'name_focus' },
+            { text: "Майже готово! Заповніть останнє поле", trigger: 'person_focus' },
+            { text: "Рядок заповнено! Натисніть Esc, щоб вийти з редагування", trigger: 'person_valid' },
+            { text: "Супер! Тепер тисніть Enter, щоб згенерувати документи", trigger: 'esc_pressed' },
+            { text: "<span class='final-hint'>Shift + Tab - назад | Tab - вперед | Esc - вийти | Enter - згенерувати</span>", trigger: 'end' }
+        ];
+
+        function showGuideText(stepIndex) {
+            if (!tutorialActive || stepIndex < tutorialStep) return;
+
+            tutorialStep = stepIndex;
+            const step = tutorialSteps[stepIndex];
+            
+            guideTextElement.classList.remove('visible');
+            
+            setTimeout(() => {
+                guideTextElement.innerHTML = step.text;
+                guideTextElement.classList.add('visible');
+            }, 200); // Short delay for fade out/in effect
+        }
+
+        function endTutorial() {
+            if (!tutorialActive) return;
+            tutorialActive = false;
+            setTimeout(() => showGuideText(tutorialSteps.length - 1), 1000);
+        }
+        // --- End of Guide Logic ---
+
 
         function isValidDateString(dateStr) {
             if (!/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) {
@@ -372,13 +446,17 @@
                 const isLengthInvalid = text !== '' && !/^\d{6}$/.test(text);
                 const isDuplicate = text !== '' && values[text] && values[text].count > 1;
 
-                // A cell is invalid if its length is wrong OR it's a duplicate
                 if (isLengthInvalid || isDuplicate) {
                     cell.classList.add('invalid');
                 } else {
                     cell.classList.remove('invalid');
                 }
             });
+             // Tutorial Trigger
+            const firstNumCell = tableBody.querySelector('tr:first-child td:nth-child(3) .editable-cell');
+            if (firstNumCell && firstNumCell.textContent.trim().length === 6 && !firstNumCell.classList.contains('invalid')) {
+                showGuideText(1);
+            }
         }
 
 
@@ -404,14 +482,12 @@
                 const startDate = parseDate(startStr);
                 const endDate = parseDate(endStr);
                 
-                // Validation 1: End date must be after start date
                 if (endDate <= startDate) {
                     startDateCell.classList.add('invalid');
                     endDateCell.classList.add('invalid');
                     return; 
                 }
                 
-                // Validation 2: Date range cannot be more than X years based on type
                 const typeStr = typeCell.textContent.trim();
                 let maxYears = 0;
                 if (typeStr === 'винахід' || typeStr === 'торговельну марку') {
@@ -460,21 +536,33 @@
         function updateStatus() {
             const rows = tableBody.querySelectorAll('tr');
             let completeRowCount = 0;
-            rows.forEach(row => {
+            rows.forEach((row, rowIndex) => {
                 const cells = row.querySelectorAll('.editable-cell');
                 const statusLight = row.querySelector('.status-light');
                 let filledCellCount = 0;
+                let hasInvalidCells = false;
                 cells.forEach(cell => {
                     if (cell.textContent.trim() !== '') filledCellCount++;
+                    if (cell.classList.contains('invalid')) hasInvalidCells = true;
                 });
+
+                const isComplete = filledCellCount === cells.length && !hasInvalidCells;
 
                 if (filledCellCount === 0) {
                     statusLight.className = 'status-light status-grey';
-                } else if (filledCellCount < cells.length || row.querySelector('.editable-cell.invalid')) {
+                } else if (!isComplete) {
                     statusLight.className = 'status-light status-red';
                 } else {
                     statusLight.className = 'status-light status-green';
                     completeRowCount++;
+                }
+                
+                // Tutorial trigger
+                if(tutorialActive && rowIndex === 0 && isComplete) {
+                    const lastCell = row.querySelector('td:last-child .editable-cell');
+                    if(document.activeElement === lastCell) {
+                         showGuideText(6);
+                    }
                 }
             });
             filledRowsEl.textContent = `${completeRowCount}/${rows.length}`;
@@ -511,6 +599,8 @@
         }
 
         async function generateDocuments() {
+            if (tutorialActive) endTutorial();
+            
             const invalidNumberCells = tableBody.querySelectorAll('td:nth-child(3) .editable-cell.invalid');
             if (invalidNumberCells.length > 0) {
                 showNotification('Помилка: Виправте поля "Номер". Вони повинні містити 6 унікальних цифр.', false);
@@ -586,22 +676,47 @@
         generateBtnTop.addEventListener('click', generateDocuments);
 
         document.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter' && !document.activeElement.classList.contains('editable-cell')) {
+            if (event.key === 'Enter' && !event.target.classList.contains('editable-cell')) {
                 event.preventDefault();
                 generateDocuments();
             } else if (event.key === 'Escape' || event.key === 'Esc') {
                 if (document.activeElement.classList.contains('editable-cell')) {
                     document.activeElement.blur();
+                    showGuideText(7);
                 }
             }
         });
 
         document.addEventListener('DOMContentLoaded', () => {
             initTable();
+            showGuideText(0);
+
+            tableBody.addEventListener('focusin', (event) => {
+                const cell = event.target;
+                if (!tutorialActive || !cell.classList.contains('editable-cell')) return;
+
+                const parentRow = cell.closest('tr');
+                if (parentRow !== tableBody.firstElementChild) {
+                    endTutorial();
+                    return;
+                }
+                
+                const cellIndex = cell.closest('td').cellIndex;
+                if(cellIndex === 3) showGuideText(2);
+                if(cellIndex === 4) showGuideText(4);
+                if(cellIndex === 9) showGuideText(5);
+            });
 
             tableBody.addEventListener('keydown', (event) => {
                 const cell = event.target;
                 if (!cell.classList.contains('editable-cell')) return;
+                
+                if (tutorialActive && event.key === 'Tab') {
+                     const parentRow = cell.closest('tr');
+                     if (parentRow === tableBody.firstElementChild && tutorialStep === 1) {
+                         showGuideText(2);
+                     }
+                }
 
                 if (event.key === 'Tab' && cell.classList.contains('invalid')) {
                     event.preventDefault();
@@ -683,6 +798,10 @@
                     const isValid = currentContent === '' || validTypes.includes(currentContent);
                     cell.classList.toggle('invalid', !isValid);
                     validateDateRow(parentRow);
+
+                    if (tutorialActive && parentRow === tableBody.firstElementChild && isValid && currentContent !== '') {
+                        showGuideText(3);
+                    }
                 }
 
                 if (cellIndex === 5) {
@@ -694,9 +813,9 @@
                     const originalText = cell.textContent;
                     let correctedText;
                     if (cellIndex === 8) { 
-                       correctedText = originalText.replace(/[.;:/|]/g, ',');
+                        correctedText = originalText.replace(/[.;:/|]/g, ',');
                     } else { 
-                       correctedText = originalText.replace(/[,/|;]/g, '.');
+                        correctedText = originalText.replace(/[,/|;]/g, '.');
                     }
 
                     if (originalText !== correctedText) {
@@ -716,10 +835,10 @@
                 }
                 
                 if (cellIndex === 6 || cellIndex === 7) {
-                      validateDateRow(parentRow);
+                         validateDateRow(parentRow);
                 }
                 if (cellIndex === 8) {
-                      validateCostRow(cell);
+                         validateCostRow(cell);
                 }
 
 
