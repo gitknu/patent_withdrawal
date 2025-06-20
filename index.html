@@ -265,6 +265,7 @@
             <h1>Генератор актів списання</h1>
             <p class="subtitle">Для швидкого переходу на нове поле тисніть TAB. Для генерації Enter</p>
         </header>
+
         <div class="card">
             <h2 class="card-title">Таблиця даних</h2>
             <table>
@@ -305,11 +306,13 @@
             <div class="loader-text">Генеруємо документи...</div>
         </div>
     </div>
+
     <script>
         const TEMPLATE_URL = 'https://gitknu.github.io/patent_withdrawal/input_patent_withdrawal.docx';
         const PLACEHOLDERS = ['num_p', 'type', 'name', 'num_db', 'start', 'end', 'value', 'person'];
         const INITIAL_ROWS_COUNT = 3;
         const MAX_ROWS_COUNT = 50;
+
         const tableBody = document.getElementById('table-body');
         const generateBtn = document.getElementById('generate-btn');
         const generateBtnTop = document.getElementById('generate-btn-top');
@@ -317,6 +320,7 @@
         const filledRowsEl = document.getElementById('filled-rows');
         const toGenerateEl = document.getElementById('to-generate');
         const loader = document.getElementById('loader');
+
         function isValidDateString(dateStr) {
             if (!/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) {
                 return false;
@@ -331,22 +335,29 @@
             const date = new Date(year, month - 1, day);
             return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
         }
+
         function parseDate(dateStr) {
             const parts = dateStr.split('.');
             return new Date(parts[2], parts[1] - 1, parts[0]);
         }
+
         function validateDateRow(row) {
             const startDateCell = row.querySelector('td:nth-child(7) .editable-cell');
             const endDateCell = row.querySelector('td:nth-child(8) .editable-cell');
             if (!startDateCell || !endDateCell) return;
+
             const startStr = startDateCell.textContent.trim();
             const endStr = endDateCell.textContent.trim();
+            
             startDateCell.classList.remove('invalid');
             endDateCell.classList.remove('invalid');
+
             const isStartFormatValid = startStr === '' || isValidDateString(startStr);
             const isEndFormatValid = endStr === '' || isValidDateString(endStr);
+
             if (startStr !== '' && !isStartFormatValid) startDateCell.classList.add('invalid');
             if (endStr !== '' && !isEndFormatValid) endDateCell.classList.add('invalid');
+
             if (isStartFormatValid && isEndFormatValid && startStr !== '' && endStr !== '') {
                 const startDate = parseDate(startStr);
                 const endDate = parseDate(endStr);
@@ -356,6 +367,7 @@
                 }
             }
         }
+
         function addNewRow() {
             const newIndex = tableBody.rows.length;
             const newRow = document.createElement('tr');
@@ -367,6 +379,7 @@
             newRow.innerHTML = html;
             tableBody.appendChild(newRow);
         }
+
         function initTable() {
             tableBody.innerHTML = '';
             for (let i = 0; i < INITIAL_ROWS_COUNT; i++) {
@@ -374,6 +387,7 @@
             }
             updateStatus();
         }
+
         function updateStatus() {
             const rows = tableBody.querySelectorAll('tr');
             let completeRowCount = 0;
@@ -384,6 +398,7 @@
                 cells.forEach(cell => {
                     if (cell.textContent.trim() !== '') filledCellCount++;
                 });
+
                 if (filledCellCount === 0) {
                     statusLight.className = 'status-light status-grey';
                 } else if (filledCellCount < cells.length) {
@@ -396,6 +411,7 @@
             filledRowsEl.textContent = `${completeRowCount}/${rows.length}`;
             toGenerateEl.textContent = completeRowCount;
         }
+
         function showNotification(message, isSuccess = true) {
             notification.textContent = message;
             notification.className = `notification ${isSuccess ? 'success' : 'error'} show`;
@@ -403,6 +419,7 @@
                 notification.classList.remove('show');
             }, 5000);
         }
+
         function getTableData() {
             const data = [];
             const rows = tableBody.querySelectorAll('tr');
@@ -423,30 +440,46 @@
             });
             return data;
         }
+
         async function generateDocuments() {
+            // Check for invalid "Номер" cells (6 digits)
             const invalidNumberCells = tableBody.querySelectorAll('td:nth-child(3) .editable-cell.invalid');
             if (invalidNumberCells.length > 0) {
                 showNotification('Помилка: Виправте поля "Номер". Вони повинні містити рівно 6 цифр.', false);
                 invalidNumberCells[0].focus();
                 return;
             }
+
+            // Check for invalid "Номер НД" cells (9 digits)
+            const invalidNdCells = tableBody.querySelectorAll('td:nth-child(6) .editable-cell.invalid');
+            if (invalidNdCells.length > 0) {
+                showNotification('Помилка: Виправте поля "Номер НД". Вони повинні містити рівно 9 цифр.', false);
+                invalidNdCells[0].focus();
+                return;
+            }
+
+            // Check for invalid "Тип" cells
             const invalidTypeCells = tableBody.querySelectorAll('td:nth-child(4) .editable-cell.invalid');
              if (invalidTypeCells.length > 0) {
                 showNotification('Помилка: Виправте поля "Тип". Введіть "в", "к" або "т" для автозаповнення.', false);
                 invalidTypeCells[0].focus();
                 return;
             }
+
+            // Check for invalid date cells
             const invalidDateCells = tableBody.querySelectorAll('td:nth-child(7) .editable-cell.invalid, td:nth-child(8) .editable-cell.invalid');
             if (invalidDateCells.length > 0) {
                 showNotification('Помилка: Перевірте дати. Формат ДД.ММ.РРРР, рік 1939-2100, та "Кінець" має бути пізніше "Початку".', false);
                 invalidDateCells[0].focus();
                 return;
             }
+
             const data = getTableData();
             if (data.length === 0) {
                 showNotification('Помилка: Немає повністю заповнених рядків для генерації.', false);
                 return;
             }
+
             try {
                 loader.classList.add('active');
                 const templateContent = await new Promise((resolve, reject) => {
@@ -455,6 +488,7 @@
                         else resolve(content);
                     });
                 });
+
                 for (const [index, rowData] of data.entries()) {
                     const zip = new PizZip(templateContent);
                     const doc = new docxtemplater(zip, { delimiters: { start: '<', end: '>' } });
@@ -475,8 +509,10 @@
                 loader.classList.remove('active');
             }
         }
+
         generateBtn.addEventListener('click', generateDocuments);
         generateBtnTop.addEventListener('click', generateDocuments);
+
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Enter' && !document.activeElement.classList.contains('editable-cell')) {
                 event.preventDefault();
@@ -487,19 +523,41 @@
                 }
             }
         });
+
         document.addEventListener('DOMContentLoaded', () => {
             initTable();
+
+            tableBody.addEventListener('keydown', (event) => {
+                const cell = event.target;
+                // Check if the event is on an editable cell in the "Тип" column
+                if (cell.classList.contains('editable-cell') && cell.closest('td').cellIndex === 3) {
+                    // If Backspace or Delete is pressed, clear the cell content
+                    if (event.key === 'Backspace' || event.key === 'Delete') {
+                        event.preventDefault(); // Stop the default character deletion
+                        cell.textContent = ''; // Clear the entire cell
+                        cell.classList.remove('invalid'); // Remove invalid state
+                        updateStatus(); // Update the row/table status
+                    }
+                }
+            });
+
             tableBody.addEventListener('input', (event) => {
                 const cell = event.target;
                 if (!cell.classList.contains('editable-cell')) return;
+
                 const parentTd = cell.closest('td');
                 const parentRow = cell.closest('tr');
                 if (!parentTd || !parentRow) return;
+
                 const cellIndex = parentTd.cellIndex;
+
+                // Validate "Номер" (6 digits) - cellIndex 2
                 if (cellIndex === 2) { 
                     const text = cell.textContent.trim();
                     cell.classList.toggle('invalid', text !== '' && !/^\d{6}$/.test(text));
                 }
+
+                // Validate "Тип" (autocomplete) - cellIndex 3
                 if (cellIndex === 3) {
                     const text = cell.textContent.trim().toLowerCase();
                     if (text.length === 1) {
@@ -510,6 +568,7 @@
                         };
                         if (typeMap[text]) {
                             cell.textContent = typeMap[text];
+                            // Move cursor to the end
                             const range = document.createRange();
                             const sel = window.getSelection();
                             range.selectNodeContents(cell);
@@ -523,8 +582,17 @@
                     const isValid = currentContent === '' || validTypes.includes(currentContent);
                     cell.classList.toggle('invalid', !isValid);
                 }
+
+                // Validate "Номер НД" (9 digits) - cellIndex 5
+                if (cellIndex === 5) {
+                    const text = cell.textContent.trim();
+                    cell.classList.toggle('invalid', text !== '' && !/^\d{9}$/.test(text));
+                }
+
+                // Validate and format date cells - cellIndex 6 and 7
                 const isDateCell = cellIndex === 6 || cellIndex === 7;
                 if (isDateCell) {
+                    // Auto-replace common separators with a period
                     const originalText = cell.textContent;
                     const correctedText = originalText.replace(/[,/|;]/g, '.');
                     if (originalText !== correctedText) {
@@ -543,15 +611,18 @@
                     }
                     validateDateRow(parentRow);
                 }
+
                 if (parentRow === tableBody.lastElementChild && tableBody.rows.length < MAX_ROWS_COUNT) {
                     addNewRow();
                 }
                 updateStatus();
             });
+
+            // Set placeholders for the first row
             const firstRowCells = tableBody.querySelectorAll('tr:first-child .editable-cell');
             if (firstRowCells.length > 0) {
                 const placeholders = [
-                    '123456', 'В / КМ / ТМ', 'МАШИНА ЧАСУ', '123456789',
+                    '123456', 'в / к / т', 'МАШИНА ЧАСУ', '123456789',
                     '01.01.2000', '31.12.2039', '1000,00', 'Тарас ШЕВЧЕНКО'
                 ];
                 firstRowCells.forEach((cell, index) => {
