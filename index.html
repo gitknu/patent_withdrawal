@@ -20,6 +20,8 @@
             --grey: #adb5bd;
             --guide-bg: #eef4ff;
             --guide-text: #0056b3;
+            --error-bg: #f8d7da;
+            --error-text: #721c24;
         }
         * {
             margin: 0;
@@ -94,7 +96,7 @@
             font-weight: 500;
             opacity: 0;
             transform: translateY(-10px);
-            transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+            transition: opacity 0.4s ease-out, transform 0.4s ease-out, background-color 0.3s, color 0.3s;
             max-width: 90%;
         }
         .guide-text.visible {
@@ -104,6 +106,10 @@
         .final-hint {
             color: var(--light-text);
             font-weight: 500;
+        }
+        .guide-text.error {
+            background-color: var(--error-bg);
+            color: var(--error-text);
         }
 
         .card {
@@ -357,7 +363,7 @@
         const loader = document.getElementById('loader');
         const guideTextElement = document.getElementById('guide-text-element');
 
-        // --- Interactive Guide Logic ---
+        // --- Interactive Guide & Alert Logic ---
         let tutorialActive = true;
         let tutorialStep = 0;
 
@@ -367,24 +373,44 @@
             { text: "Тепер введіть 'в', 'к' або 'т' для вибору типу", trigger: 'type_focus' },
             { text: "Добре. Для навігації використовуйте Tab та Shift + Tab", trigger: 'type_valid' },
             { text: "Заповніть решту полів у цьому рядку", trigger: 'name_focus' },
-            { text: "Майже готово! Заповніть останнє поле", trigger: 'person_focus' },
+            { text: "Майже готово! Заповніть останнє поле у форматі 'Ім\'я ПРІЗВИЩЕ'", trigger: 'person_focus' },
             { text: "Рядок заповнено! Натисніть Esc, щоб вийти з редагування", trigger: 'person_valid' },
             { text: "Супер! Тепер тисніть Enter, щоб згенерувати документи", trigger: 'esc_pressed' },
-            { text: "<span class='final-hint'>Shift + Tab - назад | Tab - вперед | Esc - вийти | Enter - згенерувати</span>", trigger: 'end' }
+            { text: "<span class='final-hint'>Shift+Tab: Назад | Tab: Вперед | Esc: Вийти | Enter: Згенерувати</span>", trigger: 'end' }
         ];
+        
+        function hideGuideAlert() {
+            if (guideTextElement.classList.contains('error')) {
+                guideTextElement.classList.remove('error', 'visible');
+                setTimeout(() => {
+                    if (!tutorialActive) {
+                        guideTextElement.innerHTML = tutorialSteps[tutorialSteps.length - 1].text;
+                        guideTextElement.classList.add('visible');
+                    } else {
+                         showGuideText(tutorialStep); // Restore current tutorial step
+                    }
+                }, 300);
+            }
+        }
+
+        function showGuideAlert(message) {
+            if (tutorialActive) endTutorial();
+            guideTextElement.classList.remove('visible');
+            setTimeout(() => {
+                guideTextElement.innerHTML = message;
+                guideTextElement.classList.add('error', 'visible');
+            }, 150);
+        }
 
         function showGuideText(stepIndex) {
             if (!tutorialActive || stepIndex < tutorialStep) return;
-
             tutorialStep = stepIndex;
             const step = tutorialSteps[stepIndex];
-            
-            guideTextElement.classList.remove('visible');
-            
+            guideTextElement.classList.remove('error', 'visible');
             setTimeout(() => {
                 guideTextElement.innerHTML = step.text;
                 guideTextElement.classList.add('visible');
-            }, 200); // Short delay for fade out/in effect
+            }, 200);
         }
 
         function endTutorial() {
@@ -392,20 +418,22 @@
             tutorialActive = false;
             setTimeout(() => showGuideText(tutorialSteps.length - 1), 1000);
         }
-        // --- End of Guide Logic ---
-
+        
+        // --- Validation & Data Functions ---
+        
+        function validatePersonName(cell) {
+            const text = cell.textContent.trim();
+            const nameRegex = /^[А-ЯІЇЄҐ][а-яіїєґ']+ [А-ЯІЇЄҐ'-]+$/u;
+            cell.classList.toggle('invalid', text !== '' && !nameRegex.test(text));
+        }
 
         function isValidDateString(dateStr) {
-            if (!/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) {
-                return false;
-            }
+            if (!/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) return false;
             const parts = dateStr.split('.');
             const day = parseInt(parts[0], 10);
             const month = parseInt(parts[1], 10);
             const year = parseInt(parts[2], 10);
-            if (year < 1939 || year > 2100 || month < 1 || month > 12) {
-                return false;
-            }
+            if (year < 1939 || year > 2100 || month < 1 || month > 12) return false;
             const date = new Date(year, month - 1, day);
             return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
         }
@@ -426,39 +454,27 @@
         
         function validateNumberUniqueness() {
             const numberCells = tableBody.querySelectorAll('td:nth-child(3) .editable-cell');
-            const values = {}; // Use a map to store counts and elements
-
-            // First pass: count occurrences of each number
+            const values = {}; 
             numberCells.forEach(cell => {
                 const value = cell.textContent.trim();
                 if (value) {
-                    if (!values[value]) {
-                        values[value] = { count: 0, cells: [] };
-                    }
+                    if (!values[value]) values[value] = { count: 0, cells: [] };
                     values[value].count++;
                     values[value].cells.push(cell);
                 }
             });
 
-            // Second pass: apply invalid class based on counts and existing format validation
             numberCells.forEach(cell => {
                 const text = cell.textContent.trim();
                 const isLengthInvalid = text !== '' && !/^\d{6}$/.test(text);
                 const isDuplicate = text !== '' && values[text] && values[text].count > 1;
-
-                if (isLengthInvalid || isDuplicate) {
-                    cell.classList.add('invalid');
-                } else {
-                    cell.classList.remove('invalid');
-                }
+                cell.classList.toggle('invalid', isLengthInvalid || isDuplicate);
             });
-             // Tutorial Trigger
             const firstNumCell = tableBody.querySelector('tr:first-child td:nth-child(3) .editable-cell');
-            if (firstNumCell && firstNumCell.textContent.trim().length === 6 && !firstNumCell.classList.contains('invalid')) {
+            if (firstNumCell && !firstNumCell.classList.contains('invalid') && firstNumCell.textContent.length === 6) {
                 showGuideText(1);
             }
         }
-
 
         function validateDateRow(row) {
             const startDateCell = row.querySelector('td:nth-child(7) .editable-cell');
@@ -499,7 +515,6 @@
                 if (maxYears > 0) {
                     const maxEndDate = new Date(startDate.getTime());
                     maxEndDate.setFullYear(maxEndDate.getFullYear() + maxYears);
-                    
                     if (endDate > maxEndDate) {
                          startDateCell.classList.add('invalid');
                          endDateCell.classList.add('invalid');
@@ -513,24 +528,19 @@
             const newRow = document.createElement('tr');
             let html = `<td>${newIndex + 1}</td>`;
             html += '<td><div class="status-light status-grey"></div></td>';
-            for (let j = 0; j < PLACEHOLDERS.length; j++) {
+            PLACEHOLDERS.forEach(() => {
                 html += `<td><div class="editable-cell" contenteditable="true"></div></td>`;
-            }
+            });
             newRow.innerHTML = html;
             tableBody.appendChild(newRow);
         }
 
         function initTable() {
             tableBody.innerHTML = '';
-            for (let i = 0; i < INITIAL_ROWS_COUNT; i++) {
-                addNewRow();
-            }
+            for (let i = 0; i < INITIAL_ROWS_COUNT; i++) addNewRow();
             updateStatus();
-            
             const firstCell = tableBody.querySelector('tr:first-child .editable-cell');
-            if (firstCell) {
-                firstCell.focus();
-            }
+            if (firstCell) firstCell.focus();
         }
 
         function updateStatus() {
@@ -540,10 +550,10 @@
                 const cells = row.querySelectorAll('.editable-cell');
                 const statusLight = row.querySelector('.status-light');
                 let filledCellCount = 0;
-                let hasInvalidCells = false;
+                let hasInvalidCells = !!row.querySelector('.editable-cell.invalid');
+                
                 cells.forEach(cell => {
                     if (cell.textContent.trim() !== '') filledCellCount++;
-                    if (cell.classList.contains('invalid')) hasInvalidCells = true;
                 });
 
                 const isComplete = filledCellCount === cells.length && !hasInvalidCells;
@@ -557,10 +567,8 @@
                     completeRowCount++;
                 }
                 
-                // Tutorial trigger
                 if(tutorialActive && rowIndex === 0 && isComplete) {
-                    const lastCell = row.querySelector('td:last-child .editable-cell');
-                    if(document.activeElement === lastCell) {
+                    if(document.activeElement === row.querySelector('td:last-child .editable-cell')) {
                          showGuideText(6);
                     }
                 }
@@ -579,19 +587,17 @@
 
         function getTableData() {
             const data = [];
-            const rows = tableBody.querySelectorAll('tr');
-            rows.forEach(row => {
+            tableBody.querySelectorAll('tr').forEach(row => {
                 const cells = row.querySelectorAll('.editable-cell');
-                let allFilled = true;
-                let hasData = false;
+                let allFilled = true, hasData = false;
                 const rowData = {};
                 cells.forEach((cell, index) => {
                     const value = cell.textContent.trim();
                     rowData[PLACEHOLDERS[index]] = value;
                     if (value !== '') hasData = true;
-                    if (value === '') allFilled = false;
+                    else allFilled = false;
                 });
-                if (hasData && allFilled) {
+                if (hasData && allFilled && !row.querySelector('.editable-cell.invalid')) {
                     data.push(rowData);
                 }
             });
@@ -599,46 +605,28 @@
         }
 
         async function generateDocuments() {
-            if (tutorialActive) endTutorial();
-            
-            const invalidNumberCells = tableBody.querySelectorAll('td:nth-child(3) .editable-cell.invalid');
-            if (invalidNumberCells.length > 0) {
-                showNotification('Помилка: Виправте поля "Номер". Вони повинні містити 6 унікальних цифр.', false);
-                invalidNumberCells[0].focus();
-                return;
-            }
+            // Run all validations and show guide alerts
+            const checks = [
+                { selector: 'td:nth-child(3) .editable-cell.invalid', message: 'Помилка: "Номер" має містити 6 <b>унікальних</b> цифр.' },
+                { selector: 'td:nth-child(4) .editable-cell.invalid', message: 'Помилка: "Тип" невірний. Введіть "в", "к" або "т".' },
+                { selector: 'td:nth-child(6) .editable-cell.invalid', message: 'Помилка: "Номер НД" має містити рівно <b>9</b> цифр.' },
+                { selector: 'td:nth-child(7) .editable-cell.invalid, td:nth-child(8) .editable-cell.invalid', message: 'Помилка: Перевірте <b>дати</b>. Невірний формат або логіка.' },
+                { selector: 'td:nth-child(9) .editable-cell.invalid', message: 'Помилка: "Вартість" має формат <b>1234,56</b>.' },
+                { selector: 'td:nth-child(10) .editable-cell.invalid', message: 'Помилка: "Підписує" має формат <b>Ім\'я ПРІЗВИЩЕ</b>.' }
+            ];
 
-            const invalidNdCells = tableBody.querySelectorAll('td:nth-child(6) .editable-cell.invalid');
-            if (invalidNdCells.length > 0) {
-                showNotification('Помилка: Виправте поля "Номер НД". Вони повинні містити рівно 9 цифр.', false);
-                invalidNdCells[0].focus();
-                return;
-            }
-
-            const invalidTypeCells = tableBody.querySelectorAll('td:nth-child(4) .editable-cell.invalid');
-             if (invalidTypeCells.length > 0) {
-                showNotification('Помилка: Виправте поля "Тип". Введіть "в", "к" або "т" для автозаповнення.', false);
-                invalidTypeCells[0].focus();
-                return;
-            }
-
-            const invalidDateCells = tableBody.querySelectorAll('td:nth-child(7) .editable-cell.invalid, td:nth-child(8) .editable-cell.invalid');
-            if (invalidDateCells.length > 0) {
-                showNotification('Помилка: Перевірте дати. Формат ДД.ММ.РРРР. Термін не може перевищувати 20/30 років і "Кінець" має бути пізніше "Початку".', false);
-                invalidDateCells[0].focus();
-                return;
-            }
-
-            const invalidCostCells = tableBody.querySelectorAll('td:nth-child(9) .editable-cell.invalid');
-            if (invalidCostCells.length > 0) {
-                showNotification('Помилка: Виправте поле "Вартість". Формат до 9 цифр, кома, 2 цифри (напр. 12345,67).', false);
-                invalidCostCells[0].focus();
-                return;
+            for (const check of checks) {
+                const invalidCells = tableBody.querySelectorAll(check.selector);
+                if (invalidCells.length > 0) {
+                    showGuideAlert(check.message);
+                    invalidCells[0].focus();
+                    return;
+                }
             }
 
             const data = getTableData();
             if (data.length === 0) {
-                showNotification('Помилка: Немає повністю заповнених рядків для генерації.', false);
+                showGuideAlert('Помилка: Немає повністю та коректно заповнених рядків для генерації.');
                 return;
             }
 
@@ -646,32 +634,30 @@
                 loader.classList.add('active');
                 const templateContent = await new Promise((resolve, reject) => {
                     PizZipUtils.getBinaryContent(TEMPLATE_URL, (error, content) => {
-                        if (error) reject(new Error(`Помилка завантаження шаблону: ${error.message || error.toString()}`));
+                        if (error) reject(new Error(`Помилка завантаження шаблону.`));
                         else resolve(content);
                     });
                 });
-
+                
                 for (const [index, rowData] of data.entries()) {
                     const zip = new PizZip(templateContent);
                     const doc = new docxtemplater(zip, { delimiters: { start: '<', end: '>' } });
                     doc.setData(rowData);
                     doc.render();
-                    const out = doc.getZip().generate({
-                        type: 'blob',
-                        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                    });
-                    const filename = `${index + 1}_Акт_${rowData.num_p || 'НомерВідсутній'}.docx`;
-                    saveAs(out, filename);
+                    const out = doc.getZip().generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+                    saveAs(out, `${index + 1}_Акт_${rowData.num_p || 'Номер'}.docx`);
                 }
                 showNotification(`Успішно згенеровано ${data.length} документів!`);
             } catch (error) {
                 console.error('Generation error:', error);
-                showNotification(`Критична помилка: ${error.message || 'Не вдалося згенерувати документи'}`, false);
+                showGuideAlert(`Критична помилка: ${error.message}`);
             } finally {
                 loader.classList.remove('active');
             }
         }
-
+        
+        // --- Event Listeners Setup ---
+        
         generateBtn.addEventListener('click', generateDocuments);
         generateBtnTop.addEventListener('click', generateDocuments);
 
@@ -682,7 +668,7 @@
             } else if (event.key === 'Escape' || event.key === 'Esc') {
                 if (document.activeElement.classList.contains('editable-cell')) {
                     document.activeElement.blur();
-                    showGuideText(7);
+                    if(tutorialActive) showGuideText(7);
                 }
             }
         });
@@ -694,13 +680,11 @@
             tableBody.addEventListener('focusin', (event) => {
                 const cell = event.target;
                 if (!tutorialActive || !cell.classList.contains('editable-cell')) return;
-
                 const parentRow = cell.closest('tr');
                 if (parentRow !== tableBody.firstElementChild) {
                     endTutorial();
                     return;
                 }
-                
                 const cellIndex = cell.closest('td').cellIndex;
                 if(cellIndex === 3) showGuideText(2);
                 if(cellIndex === 4) showGuideText(4);
@@ -711,59 +695,39 @@
                 const cell = event.target;
                 if (!cell.classList.contains('editable-cell')) return;
                 
-                if (tutorialActive && event.key === 'Tab') {
-                     const parentRow = cell.closest('tr');
-                     if (parentRow === tableBody.firstElementChild && tutorialStep === 1) {
-                         showGuideText(2);
-                     }
-                }
+                const isCharKey = event.key.length === 1 && !event.ctrlKey && !event.metaKey;
+                const cellIndex = cell.closest('td').cellIndex;
 
                 if (event.key === 'Tab' && cell.classList.contains('invalid')) {
                     event.preventDefault();
                     return;
                 }
-
-                const cellIndex = cell.closest('td').cellIndex;
-                const currentText = cell.textContent;
-                const isCharKey = event.key.length === 1 && !event.ctrlKey && !event.metaKey;
-
-                const maxLengths = { 2: 6, 5: 9, 6: 10, 7: 10, 8: 12 };
-                if (maxLengths[cellIndex] && currentText.length >= maxLengths[cellIndex] && isCharKey && window.getSelection().toString().length === 0) {
-                    event.preventDefault();
-                }
-
-                if ((cellIndex === 2 || cellIndex === 5) && !/^\d$/.test(event.key) && isCharKey) {
-                   event.preventDefault();
-                }
                 
-                if (cellIndex === 8) { // Вартість
-                    if (!/^[\d,]*$/.test(event.key) && isCharKey) {
-                       event.preventDefault();
-                    }
-                    if (currentText.includes(',') && currentText.split(',')[1].length >= 2 && isCharKey && /\d/.test(event.key)) {
-                       event.preventDefault();
-                    }
-                } else if ((cellIndex === 6 || cellIndex === 7) && !/^[\d.]$/.test(event.key) && isCharKey) { // Дати
+                const maxLengths = { 2: 6, 5: 9, 6: 10, 7: 10, 8: 12 }; // ColIndex: MaxLength
+                if (maxLengths[cellIndex] && cell.textContent.length >= maxLengths[cellIndex] && isCharKey && window.getSelection().toString().length === 0) {
                     event.preventDefault();
                 }
+
+                if ((cellIndex === 2 || cellIndex === 5) && !/^\d$/.test(event.key) && isCharKey) event.preventDefault();
+                else if ((cellIndex === 6 || cellIndex === 7) && !/^[\d.]$/.test(event.key) && isCharKey) event.preventDefault();
+                else if (cellIndex === 8 && !/^[\d,]*$/.test(event.key) && isCharKey) event.preventDefault();
+                else if (cellIndex === 9 && !/^[А-ЯІЇЄҐа-яіїєґ' -]$/u.test(event.key) && isCharKey) event.preventDefault();
+
 
                 if (cellIndex === 3) {
                     const validTypes = ['винахід', 'корисну модель', 'торговельну марку'];
                     if (event.key === 'Backspace' || event.key === 'Delete') {
-                        event.preventDefault(); 
-                        cell.textContent = ''; 
-                        cell.classList.remove('invalid');
-                        validateDateRow(cell.closest('tr'));
-                        updateStatus();
-                    } else if (validTypes.includes(currentText.trim()) && isCharKey) {
-                        event.preventDefault();
-                    }
+                        event.preventDefault(); cell.textContent = ''; cell.classList.remove('invalid');
+                        validateDateRow(cell.closest('tr')); updateStatus();
+                    } else if (validTypes.includes(cell.textContent.trim()) && isCharKey) event.preventDefault();
                 }
             });
 
             tableBody.addEventListener('input', (event) => {
                 const cell = event.target;
                 if (!cell.classList.contains('editable-cell')) return;
+                
+                hideGuideAlert(); // Clear any error message on new input
 
                 const parentTd = cell.closest('td');
                 const parentRow = cell.closest('tr');
@@ -771,95 +735,64 @@
 
                 const cellIndex = parentTd.cellIndex;
 
-                if (cellIndex === 2) { 
-                    validateNumberUniqueness();
-                }
-
+                // --- Live Validation ---
+                if (cellIndex === 2) validateNumberUniqueness();
                 if (cellIndex === 3) {
                     const text = cell.textContent.trim().toLowerCase();
-                    if (text.length === 1) {
-                        const typeMap = {
-                            'в': 'винахід',
-                            'к': 'корисну модель',
-                            'т': 'торговельну марку'
-                        };
-                        if (typeMap[text]) {
-                            cell.textContent = typeMap[text];
-                            const range = document.createRange();
-                            const sel = window.getSelection();
-                            range.selectNodeContents(cell);
-                            range.collapse(false);
-                            sel.removeAllRanges();
-                            sel.addRange(range);
-                        }
+                    const typeMap = { 'в': 'винахід', 'к': 'корисну модель', 'т': 'торговельну марку' };
+                    if (text.length === 1 && typeMap[text]) {
+                        cell.textContent = typeMap[text];
+                        // Move cursor to end
+                        const range = document.createRange();
+                        const sel = window.getSelection();
+                        range.selectNodeContents(cell);
+                        range.collapse(false);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
                     }
-                    const validTypes = ['винахід', 'корисну модель', 'торговельну марку'];
-                    const currentContent = cell.textContent.trim();
-                    const isValid = currentContent === '' || validTypes.includes(currentContent);
+                    const validTypes = Object.values(typeMap);
+                    const isValid = cell.textContent === '' || validTypes.includes(cell.textContent);
                     cell.classList.toggle('invalid', !isValid);
-                    validateDateRow(parentRow);
-
-                    if (tutorialActive && parentRow === tableBody.firstElementChild && isValid && currentContent !== '') {
-                        showGuideText(3);
-                    }
+                    if (tutorialActive && parentRow === tableBody.firstElementChild && isValid && cell.textContent !== '') showGuideText(3);
                 }
+                if (cellIndex === 5) cell.classList.toggle('invalid', cell.textContent !== '' && !/^\d{9}$/.test(cell.textContent));
+                if (cellIndex === 6 || cellIndex === 7) validateDateRow(parentRow);
+                if (cellIndex === 8) validateCostRow(cell);
+                if (cellIndex === 9) validatePersonName(cell);
 
-                if (cellIndex === 5) {
-                    const text = cell.textContent.trim();
-                    cell.classList.toggle('invalid', text !== '' && !/^\d{9}$/.test(text));
-                }
-
-                if (cellIndex === 6 || cellIndex === 7 || cellIndex === 8) {
-                    const originalText = cell.textContent;
-                    let correctedText;
-                    if (cellIndex === 8) { 
-                        correctedText = originalText.replace(/[.;:/|]/g, ',');
-                    } else { 
-                        correctedText = originalText.replace(/[,/|;]/g, '.');
-                    }
-
-                    if (originalText !== correctedText) {
+                // --- Auto-correct separators ---
+                if (cellIndex === 8 || cellIndex === 6 || cellIndex === 7) {
+                    const separator = (cellIndex === 8) ? ',' : '.';
+                    const wrongSeparator = (separator === ',') ? '.' : ',';
+                    if (cell.textContent.includes(wrongSeparator)) {
+                        // Preserve cursor position
                         const selection = window.getSelection();
-                        const range = selection.getRangeAt(0);
-                        const offset = range.startOffset;
-                        cell.textContent = correctedText;
+                        const offset = selection.getRangeAt(0).startOffset;
+                        cell.textContent = cell.textContent.replace(new RegExp(`\\${wrongSeparator}`, 'g'), separator);
                         if (cell.firstChild) {
-                            const newOffset = Math.min(offset, cell.firstChild.length);
-                            const newRange = document.createRange();
-                            newRange.setStart(cell.firstChild, newOffset);
-                            newRange.collapse(true);
-                            selection.removeAllRanges();
-                            selection.addRange(newRange);
+                             const newOffset = Math.min(offset, cell.firstChild.length);
+                             const newRange = document.createRange();
+                             newRange.setStart(cell.firstChild, newOffset);
+                             newRange.collapse(true);
+                             selection.removeAllRanges();
+                             selection.addRange(newRange);
                         }
                     }
                 }
                 
-                if (cellIndex === 6 || cellIndex === 7) {
-                         validateDateRow(parentRow);
-                }
-                if (cellIndex === 8) {
-                         validateCostRow(cell);
-                }
-
-
+                // --- Add new row if needed ---
                 if (parentRow === tableBody.lastElementChild && tableBody.rows.length < MAX_ROWS_COUNT) {
                     addNewRow();
                 }
                 updateStatus();
             });
 
+            // Set placeholders for the first row
             const firstRowCells = tableBody.querySelectorAll('tr:first-child .editable-cell');
-            if (firstRowCells.length > 0) {
-                const placeholders = [
-                    '123456', 'в / к / т', 'МАШИНА ЧАСУ', '123456789',
-                    '01.01.2000', '31.12.2039', '1000,00', 'Тарас ШЕВЧЕНКО'
-                ];
-                firstRowCells.forEach((cell, index) => {
-                    if (placeholders[index]) {
-                        cell.setAttribute('data-placeholder', placeholders[index]);
-                    }
-                });
-            }
+            const placeholders = [ '123456', 'в/к/т', 'МАШИНА ЧАСУ', '123456789', '01.01.2000', '31.12.2020', '1000,00', 'Тарас ШЕВЧЕНКО'];
+            firstRowCells.forEach((cell, index) => {
+                if (placeholders[index]) cell.setAttribute('data-placeholder', placeholders[index]);
+            });
         });
     </script>
 </body>
