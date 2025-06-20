@@ -244,7 +244,7 @@
             <div class="header-main">
                 <div class="header-status">
                     <div class="status-counter">
-                        <div class="status-value" id="filled-rows">0/10</div>
+                        <div class="status-value" id="filled-rows">0/3</div>
                         <div class="status-label">Заповнено рядків</div>
                     </div>
                     <div class="status-counter">
@@ -310,7 +310,8 @@
     <script>
         const TEMPLATE_URL = 'https://gitknu.github.io/patent_withdrawal/input_patent_withdrawal.docx';
         const PLACEHOLDERS = ['num_p', 'type', 'name', 'num_db', 'start', 'end', 'value', 'person'];
-        const ROWS_COUNT = 10;
+        const INITIAL_ROWS_COUNT = 3;
+        const MAX_ROWS_COUNT = 50;
 
         const tableBody = document.getElementById('table-body');
         const generateBtn = document.getElementById('generate-btn');
@@ -322,96 +323,72 @@
 
         // --- DATE VALIDATION HELPERS ---
 
-        /**
-         * Checks if a string is a valid date according to the specified rules.
-         * @param {string} dateStr - The date string to validate (e.g., "DD.MM.YYYY").
-         * @returns {boolean} - True if the date is valid, false otherwise.
-         */
         function isValidDateString(dateStr) {
             if (!/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) {
                 return false;
             }
-
             const parts = dateStr.split('.');
             const day = parseInt(parts[0], 10);
             const month = parseInt(parts[1], 10);
             const year = parseInt(parts[2], 10);
-
             if (year < 1939 || year > 2100 || month < 1 || month > 12) {
                 return false;
             }
-
-            // Check for valid day of the month (e.g., handles leap years, month lengths)
             const date = new Date(year, month - 1, day);
             return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
         }
 
-        /**
-         * Parses a valid "DD.MM.YYYY" string into a Date object.
-         * @param {string} dateStr - The date string to parse.
-         * @returns {Date} - The parsed Date object.
-         */
         function parseDate(dateStr) {
             const parts = dateStr.split('.');
             return new Date(parts[2], parts[1] - 1, parts[0]);
         }
 
-        /**
-         * Validates the start and end date cells for an entire table row.
-         * @param {HTMLTableRowElement} row - The table row to validate.
-         */
         function validateDateRow(row) {
             const startDateCell = row.querySelector('td:nth-child(7) .editable-cell');
             const endDateCell = row.querySelector('td:nth-child(8) .editable-cell');
-            
             if (!startDateCell || !endDateCell) return;
-
             const startStr = startDateCell.textContent.trim();
             const endStr = endDateCell.textContent.trim();
-
-            // Reset previous validation state for dates
             startDateCell.classList.remove('invalid');
             endDateCell.classList.remove('invalid');
-            
-            // Step 1: Validate individual date formats
             const isStartFormatValid = startStr === '' || isValidDateString(startStr);
             const isEndFormatValid = endStr === '' || isValidDateString(endStr);
-
-            if (startStr !== '' && !isStartFormatValid) {
-                startDateCell.classList.add('invalid');
-            }
-            if (endStr !== '' && !isEndFormatValid) {
-                endDateCell.classList.add('invalid');
-            }
-            
-            // Step 2: Perform cross-validation if both formats are correct and fields are filled
+            if (startStr !== '' && !isStartFormatValid) startDateCell.classList.add('invalid');
+            if (endStr !== '' && !isEndFormatValid) endDateCell.classList.add('invalid');
             if (isStartFormatValid && isEndFormatValid && startStr !== '' && endStr !== '') {
                 const startDate = parseDate(startStr);
                 const endDate = parseDate(endStr);
-                
                 if (endDate <= startDate) {
                     startDateCell.classList.add('invalid');
                     endDateCell.classList.add('invalid');
                 }
             }
         }
+        
+        // --- DYNAMIC TABLE LOGIC ---
 
-
-        // Initialize the table with empty rows
-        function initTable() {
-            let html = '';
-            for (let i = 0; i < ROWS_COUNT; i++) {
-                html += '<tr>';
-                html += `<td>${i + 1}</td>`; 
-                html += '<td><div class="status-light status-grey"></div></td>';
-                for (let j = 0; j < PLACEHOLDERS.length; j++) {
-                    html += `<td><div class="editable-cell" contenteditable="true"></div></td>`;
-                }
-                html += '</tr>';
+        /**
+         * Appends a new empty row to the table body.
+         */
+        function addNewRow() {
+            const newIndex = tableBody.rows.length;
+            const newRow = document.createElement('tr');
+            let html = `<td>${newIndex + 1}</td>`;
+            html += '<td><div class="status-light status-grey"></div></td>';
+            for (let j = 0; j < PLACEHOLDERS.length; j++) {
+                html += `<td><div class="editable-cell" contenteditable="true"></div></td>`;
             }
-            tableBody.innerHTML = html;
+            newRow.innerHTML = html;
+            tableBody.appendChild(newRow);
+        }
+
+        // Initialize the table with a starting number of empty rows
+        function initTable() {
+            tableBody.innerHTML = ''; // Clear existing rows
+            for (let i = 0; i < INITIAL_ROWS_COUNT; i++) {
+                addNewRow();
+            }
             updateStatus();
-            tableBody.addEventListener('input', updateStatus);
         }
 
         // Update counters and row status lights
@@ -438,11 +415,13 @@
                 }
             });
 
-            filledRowsEl.textContent = `${completeRowCount}/${ROWS_COUNT}`;
+            // Update header counters to reflect current number of rows
+            filledRowsEl.textContent = `${completeRowCount}/${rows.length}`;
             toGenerateEl.textContent = completeRowCount;
         }
+        
+        // --- NOTIFICATIONS & DATA HANDLING ---
 
-        // Show a success or error notification
         function showNotification(message, isSuccess = true) {
             notification.textContent = message;
             notification.className = `notification ${isSuccess ? 'success' : 'error'} show`;
@@ -451,7 +430,6 @@
             }, 5000);
         }
 
-        // Get data from all completely filled rows
         function getTableData() {
             const data = [];
             const rows = tableBody.querySelectorAll('tr');
@@ -460,14 +438,12 @@
                 let allFilled = true;
                 let hasData = false;
                 const rowData = {};
-
                 cells.forEach((cell, index) => {
                     const value = cell.textContent.trim();
                     rowData[PLACEHOLDERS[index]] = value;
                     if (value !== '') hasData = true;
                     if (value === '') allFilled = false;
                 });
-
                 if (hasData && allFilled) {
                     data.push(rowData);
                 }
@@ -477,57 +453,43 @@
 
         // Generate and download DOCX files
         async function generateDocuments() {
-            // Check for invalid number cells before proceeding.
             const invalidNumberCells = tableBody.querySelectorAll('td:nth-child(3) .editable-cell.invalid');
             if (invalidNumberCells.length > 0) {
                 showNotification('Помилка: Виправте поля "Номер". Вони повинні містити рівно 6 цифр.', false);
                 invalidNumberCells[0].focus();
                 return;
             }
-
-            // Check for invalid date cells before proceeding.
             const invalidDateCells = tableBody.querySelectorAll('td:nth-child(7) .editable-cell.invalid, td:nth-child(8) .editable-cell.invalid');
             if (invalidDateCells.length > 0) {
                 showNotification('Помилка: Перевірте дати. Формат ДД.ММ.РРРР, рік 1939-2100, та "Кінець" має бути пізніше "Початку".', false);
                 invalidDateCells[0].focus();
                 return;
             }
-            
             const data = getTableData();
             if (data.length === 0) {
                 showNotification('Помилка: Немає повністю заповнених рядків для генерації.', false);
                 return;
             }
-
             try {
                 loader.classList.add('active');
-                
                 const templateContent = await new Promise((resolve, reject) => {
                     PizZipUtils.getBinaryContent(TEMPLATE_URL, (error, content) => {
-                        if (error) {
-                            reject(new Error(`Помилка завантаження шаблону: ${error.message || error.toString()}`));
-                        } else {
-                            resolve(content);
-                        }
+                        if (error) reject(new Error(`Помилка завантаження шаблону: ${error.message || error.toString()}`));
+                        else resolve(content);
                     });
                 });
-
                 for (const [index, rowData] of data.entries()) {
                     const zip = new PizZip(templateContent);
                     const doc = new docxtemplater(zip, { delimiters: { start: '<', end: '>' } });
-                    
                     doc.setData(rowData);
                     doc.render();
-
                     const out = doc.getZip().generate({
                         type: 'blob',
                         mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
                     });
-                    
                     const filename = `${index + 1}_Акт_${rowData.num_p || 'НомерВідсутній'}.docx`;
                     saveAs(out, filename);
                 }
-
                 showNotification(`Успішно згенеровано ${data.length} документів!`);
             } catch (error) {
                 console.error('Generation error:', error);
@@ -536,6 +498,8 @@
                 loader.classList.remove('active');
             }
         }
+        
+        // --- EVENT LISTENERS ---
 
         generateBtn.addEventListener('click', generateDocuments);
         generateBtnTop.addEventListener('click', generateDocuments);
@@ -564,18 +528,15 @@
 
                 const cellIndex = parentTd.cellIndex;
 
-                // --- Validation for "Номер" field (column index 2) ---
                 if (cellIndex === 2) { 
                     const text = cell.textContent.trim();
                     cell.classList.toggle('invalid', text !== '' && !/^\d{6}$/.test(text));
                 }
                 
-                // --- Auto-correction and Validation for Date fields (column indices 6, 7) ---
                 const isDateCell = cellIndex === 6 || cellIndex === 7;
                 if (isDateCell) {
                     const originalText = cell.textContent;
                     const correctedText = originalText.replace(/[,/|;]/g, '.');
-                    
                     if (originalText !== correctedText) {
                         const selection = window.getSelection();
                         const range = selection.getRangeAt(0);
@@ -592,6 +553,14 @@
                     }
                     validateDateRow(parentRow);
                 }
+
+                // Add a new row if the user is typing in the last row and we haven't reached the max
+                if (parentRow === tableBody.lastElementChild && tableBody.rows.length < MAX_ROWS_COUNT) {
+                    addNewRow();
+                }
+
+                // Always update status after an input
+                updateStatus();
             });
 
             const firstRowCells = tableBody.querySelectorAll('tr:first-child .editable-cell');
