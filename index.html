@@ -353,7 +353,8 @@
         function validateDateRow(row) {
             const startDateCell = row.querySelector('td:nth-child(7) .editable-cell');
             const endDateCell = row.querySelector('td:nth-child(8) .editable-cell');
-            if (!startDateCell || !endDateCell) return;
+            const typeCell = row.querySelector('td:nth-child(4) .editable-cell');
+            if (!startDateCell || !endDateCell || !typeCell) return;
 
             const startStr = startDateCell.textContent.trim();
             const endStr = endDateCell.textContent.trim();
@@ -370,9 +371,31 @@
             if (isStartFormatValid && isEndFormatValid && startStr !== '' && endStr !== '') {
                 const startDate = parseDate(startStr);
                 const endDate = parseDate(endStr);
+                
+                // Validation 1: End date must be after start date
                 if (endDate <= startDate) {
                     startDateCell.classList.add('invalid');
                     endDateCell.classList.add('invalid');
+                    return; 
+                }
+                
+                // Validation 2: Date range cannot be more than X years based on type
+                const typeStr = typeCell.textContent.trim();
+                let maxYears = 0;
+                if (typeStr === 'винахід' || typeStr === 'торговельну марку') {
+                    maxYears = 20;
+                } else if (typeStr === 'корисну модель') {
+                    maxYears = 30;
+                }
+
+                if (maxYears > 0) {
+                    const maxEndDate = new Date(startDate.getTime());
+                    maxEndDate.setFullYear(maxEndDate.getFullYear() + maxYears);
+                    
+                    if (endDate > maxEndDate) {
+                         startDateCell.classList.add('invalid');
+                         endDateCell.classList.add('invalid');
+                    }
                 }
             }
         }
@@ -396,7 +419,6 @@
             }
             updateStatus();
             
-            // Enhancement: Focus on the first cell on load
             const firstCell = tableBody.querySelector('tr:first-child .editable-cell');
             if (firstCell) {
                 firstCell.focus();
@@ -457,7 +479,6 @@
         }
 
         async function generateDocuments() {
-            // Check for invalid "Номер" cells (6 digits)
             const invalidNumberCells = tableBody.querySelectorAll('td:nth-child(3) .editable-cell.invalid');
             if (invalidNumberCells.length > 0) {
                 showNotification('Помилка: Виправте поля "Номер". Вони повинні містити рівно 6 цифр.', false);
@@ -465,7 +486,6 @@
                 return;
             }
 
-            // Check for invalid "Номер НД" cells (9 digits)
             const invalidNdCells = tableBody.querySelectorAll('td:nth-child(6) .editable-cell.invalid');
             if (invalidNdCells.length > 0) {
                 showNotification('Помилка: Виправте поля "Номер НД". Вони повинні містити рівно 9 цифр.', false);
@@ -473,7 +493,6 @@
                 return;
             }
 
-            // Check for invalid "Тип" cells
             const invalidTypeCells = tableBody.querySelectorAll('td:nth-child(4) .editable-cell.invalid');
              if (invalidTypeCells.length > 0) {
                 showNotification('Помилка: Виправте поля "Тип". Введіть "в", "к" або "т" для автозаповнення.', false);
@@ -481,10 +500,9 @@
                 return;
             }
 
-            // Check for invalid date cells
             const invalidDateCells = tableBody.querySelectorAll('td:nth-child(7) .editable-cell.invalid, td:nth-child(8) .editable-cell.invalid');
             if (invalidDateCells.length > 0) {
-                showNotification('Помилка: Перевірте дати. Формат ДД.ММ.РРРР, рік 1939-2100, та "Кінець" має бути пізніше "Початку".', false);
+                showNotification('Помилка: Перевірте дати. Формат ДД.ММ.РРРР. Термін не може перевищувати 20/30 років і "Кінець" має бути пізніше "Початку".', false);
                 invalidDateCells[0].focus();
                 return;
             }
@@ -553,35 +571,37 @@
                 const cell = event.target;
                 if (!cell.classList.contains('editable-cell')) return;
 
-                // Enhancement: Forbid pressing Tab until the active field is valid
                 if (event.key === 'Tab' && cell.classList.contains('invalid')) {
                     event.preventDefault();
                     return;
                 }
 
                 const cellIndex = cell.closest('td').cellIndex;
-                
-                // Allow only numbers for "Номер" and "Номер НД"
-                if (cellIndex === 2 || cellIndex === 5) {
-                    if (!/^\d$/.test(event.key) && event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
-                       event.preventDefault();
-                    }
-                }
-                
-                // Allow numbers and specific separators for date and cost fields
-                if (cellIndex === 6 || cellIndex === 7 || cellIndex === 8) {
-                     if (!/^[\d.,;:/|]$/.test(event.key) && event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
-                        event.preventDefault();
-                     }
+                const currentText = cell.textContent.trim();
+                const isCharKey = event.key.length === 1 && !event.ctrlKey && !event.metaKey;
+
+                const maxLengths = { 2: 6, 5: 9, 6: 10, 7: 10, 8: 12 };
+                if (maxLengths[cellIndex] && currentText.length >= maxLengths[cellIndex] && isCharKey) {
+                    event.preventDefault();
                 }
 
-                // Special handling for "Тип" field to allow easy deletion
+                if ((cellIndex === 2 || cellIndex === 5) && !/^\d$/.test(event.key) && isCharKey) {
+                   event.preventDefault();
+                }
+                
+                if ((cellIndex === 6 || cellIndex === 7 || cellIndex === 8) && !/^[\d.,;:/|]$/.test(event.key) && isCharKey) {
+                    event.preventDefault();
+                }
+
                 if (cellIndex === 3) {
+                    const validTypes = ['винахід', 'корисну модель', 'торговельну марку'];
                     if (event.key === 'Backspace' || event.key === 'Delete') {
                         event.preventDefault(); 
                         cell.textContent = ''; 
                         cell.classList.remove('invalid');
                         updateStatus();
+                    } else if (validTypes.includes(currentText) && isCharKey) {
+                        event.preventDefault();
                     }
                 }
             });
@@ -596,13 +616,11 @@
 
                 const cellIndex = parentTd.cellIndex;
 
-                // Validate "Номер" (6 digits) - cellIndex 2
                 if (cellIndex === 2) { 
                     const text = cell.textContent.trim();
                     cell.classList.toggle('invalid', text !== '' && !/^\d{6}$/.test(text));
                 }
 
-                // Validate "Тип" (autocomplete) - cellIndex 3
                 if (cellIndex === 3) {
                     const text = cell.textContent.trim().toLowerCase();
                     if (text.length === 1) {
@@ -613,7 +631,6 @@
                         };
                         if (typeMap[text]) {
                             cell.textContent = typeMap[text];
-                            // Move cursor to the end
                             const range = document.createRange();
                             const sel = window.getSelection();
                             range.selectNodeContents(cell);
@@ -628,19 +645,17 @@
                     cell.classList.toggle('invalid', !isValid);
                 }
 
-                // Validate "Номер НД" (9 digits) - cellIndex 5
                 if (cellIndex === 5) {
                     const text = cell.textContent.trim();
                     cell.classList.toggle('invalid', text !== '' && !/^\d{9}$/.test(text));
                 }
 
-                // Auto-replace separators and validate for date/cost fields
                 if (cellIndex === 6 || cellIndex === 7 || cellIndex === 8) {
                     const originalText = cell.textContent;
                     let correctedText;
-                    if (cellIndex === 8) { // Cost field
+                    if (cellIndex === 8) { 
                        correctedText = originalText.replace(/[.;:/|]/g, ',');
-                    } else { // Date fields
+                    } else { 
                        correctedText = originalText.replace(/[,/|;]/g, '.');
                     }
 
@@ -660,7 +675,6 @@
                     }
                 }
                 
-                // Perform validation
                 if (cellIndex === 6 || cellIndex === 7) {
                       validateDateRow(parentRow);
                 }
@@ -675,7 +689,6 @@
                 updateStatus();
             });
 
-            // Set placeholders for the first row
             const firstRowCells = tableBody.querySelectorAll('tr:first-child .editable-cell');
             if (firstRowCells.length > 0) {
                 const placeholders = [
