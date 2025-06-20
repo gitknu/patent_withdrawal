@@ -119,6 +119,7 @@
             padding: 6px;
             min-height: 30px;
             outline: none;
+            border: 1px solid transparent; /* Add transparent border for transition */
         }
         .editable-cell[data-placeholder]:empty:not(:focus):before {
             content: attr(data-placeholder);
@@ -129,6 +130,11 @@
         .editable-cell:focus {
             border-color: var(--primary);
             background: #eef4ff;
+        }
+        .editable-cell.invalid {
+            border-color: var(--error);
+            box-shadow: 0 0 4px rgba(220, 53, 69, 0.4);
+            border-radius: 3px;
         }
         .btn-container {
             text-align: center;
@@ -396,6 +402,13 @@
 
         // Generate and download DOCX files
         async function generateDocuments() {
+            // First, check for any invalid cells before proceeding.
+            const invalidCells = tableBody.querySelectorAll('.editable-cell.invalid');
+            if (invalidCells.length > 0) {
+                showNotification('Помилка: Виправте поля "Номер". Вони повинні містити рівно 6 цифр.', false);
+                return;
+            }
+            
             const data = getTableData();
             if (data.length === 0) {
                 showNotification('Помилка: Немає повністю заповнених рядків для генерації.', false);
@@ -448,17 +461,38 @@
         // Add keybinding for generation
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
-                // Check if the focus is inside an editable cell to prevent generation while typing.
                 if (document.activeElement.classList.contains('editable-cell')) {
                     return; 
                 }
-                event.preventDefault(); // Prevent default Enter behavior (like adding a new line)
+                event.preventDefault();
                 generateDocuments();
             }
         });
-
+        
         document.addEventListener('DOMContentLoaded', () => {
             initTable();
+
+            // Add live validation for the "Номер" field (must be 6 digits)
+            tableBody.addEventListener('input', (event) => {
+                const cell = event.target;
+                if (cell.classList.contains('editable-cell')) {
+                    const parentTd = cell.closest('td');
+                    if (!parentTd) return;
+                    
+                    // The "Номер" field is the second <td> in the row (index 1)
+                    if (parentTd.cellIndex === 1) { 
+                        const text = cell.textContent.trim();
+                        // An empty cell is not 'invalid', just incomplete. 
+                        // It's invalid if it has content that doesn't match the format.
+                        if (text !== '' && !/^\d{6}$/.test(text)) {
+                            cell.classList.add('invalid');
+                        } else {
+                            cell.classList.remove('invalid');
+                        }
+                    }
+                }
+            });
+
             // Set placeholders for the first row to guide the user
             const firstRowCells = tableBody.querySelectorAll('tr:first-child .editable-cell');
             if (firstRowCells.length > 0) {
