@@ -271,7 +271,6 @@
             <table>
                 <thead>
                     <tr>
-                        <!-- New enumeration column header -->
                         <th>#</th>
                         <th class="status-light-th">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
@@ -321,14 +320,90 @@
         const toGenerateEl = document.getElementById('to-generate');
         const loader = document.getElementById('loader');
 
+        // --- DATE VALIDATION HELPERS ---
+
+        /**
+         * Checks if a string is a valid date according to the specified rules.
+         * @param {string} dateStr - The date string to validate (e.g., "DD.MM.YYYY").
+         * @returns {boolean} - True if the date is valid, false otherwise.
+         */
+        function isValidDateString(dateStr) {
+            if (!/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) {
+                return false;
+            }
+
+            const parts = dateStr.split('.');
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10);
+            const year = parseInt(parts[2], 10);
+
+            if (year < 1939 || year > 2100 || month < 1 || month > 12) {
+                return false;
+            }
+
+            // Check for valid day of the month (e.g., handles leap years, month lengths)
+            const date = new Date(year, month - 1, day);
+            return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+        }
+
+        /**
+         * Parses a valid "DD.MM.YYYY" string into a Date object.
+         * @param {string} dateStr - The date string to parse.
+         * @returns {Date} - The parsed Date object.
+         */
+        function parseDate(dateStr) {
+            const parts = dateStr.split('.');
+            return new Date(parts[2], parts[1] - 1, parts[0]);
+        }
+
+        /**
+         * Validates the start and end date cells for an entire table row.
+         * @param {HTMLTableRowElement} row - The table row to validate.
+         */
+        function validateDateRow(row) {
+            const startDateCell = row.querySelector('td:nth-child(7) .editable-cell');
+            const endDateCell = row.querySelector('td:nth-child(8) .editable-cell');
+            
+            if (!startDateCell || !endDateCell) return;
+
+            const startStr = startDateCell.textContent.trim();
+            const endStr = endDateCell.textContent.trim();
+
+            // Reset previous validation state for dates
+            startDateCell.classList.remove('invalid');
+            endDateCell.classList.remove('invalid');
+            
+            // Step 1: Validate individual date formats
+            const isStartFormatValid = startStr === '' || isValidDateString(startStr);
+            const isEndFormatValid = endStr === '' || isValidDateString(endStr);
+
+            if (startStr !== '' && !isStartFormatValid) {
+                startDateCell.classList.add('invalid');
+            }
+            if (endStr !== '' && !isEndFormatValid) {
+                endDateCell.classList.add('invalid');
+            }
+            
+            // Step 2: Perform cross-validation if both formats are correct and fields are filled
+            if (isStartFormatValid && isEndFormatValid && startStr !== '' && endStr !== '') {
+                const startDate = parseDate(startStr);
+                const endDate = parseDate(endStr);
+                
+                if (endDate <= startDate) {
+                    startDateCell.classList.add('invalid');
+                    endDateCell.classList.add('invalid');
+                }
+            }
+        }
+
+
         // Initialize the table with empty rows
         function initTable() {
             let html = '';
             for (let i = 0; i < ROWS_COUNT; i++) {
                 html += '<tr>';
-                // Add enumeration cell
                 html += `<td>${i + 1}</td>`; 
-                html += '<td><div class="status-light status-grey"></div></td>'; // Status light cell
+                html += '<td><div class="status-light status-grey"></div></td>';
                 for (let j = 0; j < PLACEHOLDERS.length; j++) {
                     html += `<td><div class="editable-cell" contenteditable="true"></div></td>`;
                 }
@@ -350,23 +425,19 @@
                 let filledCellCount = 0;
                 
                 cells.forEach(cell => {
-                    if (cell.textContent.trim() !== '') {
-                        filledCellCount++;
-                    }
+                    if (cell.textContent.trim() !== '') filledCellCount++;
                 });
 
-                // Update status light based on cell content
                 if (filledCellCount === 0) {
-                    statusLight.className = 'status-light status-grey'; // Empty
+                    statusLight.className = 'status-light status-grey';
                 } else if (filledCellCount < cells.length) {
-                    statusLight.className = 'status-light status-red'; // Partially filled
+                    statusLight.className = 'status-light status-red';
                 } else {
-                    statusLight.className = 'status-light status-green'; // Complete
+                    statusLight.className = 'status-light status-green';
                     completeRowCount++;
                 }
             });
 
-            // Update header counters
             filledRowsEl.textContent = `${completeRowCount}/${ROWS_COUNT}`;
             toGenerateEl.textContent = completeRowCount;
         }
@@ -406,10 +477,19 @@
 
         // Generate and download DOCX files
         async function generateDocuments() {
-            // First, check for any invalid cells before proceeding.
-            const invalidCells = tableBody.querySelectorAll('.editable-cell.invalid');
-            if (invalidCells.length > 0) {
+            // Check for invalid number cells before proceeding.
+            const invalidNumberCells = tableBody.querySelectorAll('td:nth-child(3) .editable-cell.invalid');
+            if (invalidNumberCells.length > 0) {
                 showNotification('Помилка: Виправте поля "Номер". Вони повинні містити рівно 6 цифр.', false);
+                invalidNumberCells[0].focus();
+                return;
+            }
+
+            // Check for invalid date cells before proceeding.
+            const invalidDateCells = tableBody.querySelectorAll('td:nth-child(7) .editable-cell.invalid, td:nth-child(8) .editable-cell.invalid');
+            if (invalidDateCells.length > 0) {
+                showNotification('Помилка: Перевірте дати. Формат ДД.ММ.РРРР, рік 1939-2100, та "Кінець" має бути пізніше "Початку".', false);
+                invalidDateCells[0].focus();
                 return;
             }
             
@@ -434,9 +514,7 @@
 
                 for (const [index, rowData] of data.entries()) {
                     const zip = new PizZip(templateContent);
-                    const doc = new docxtemplater(zip, {
-                        delimiters: { start: '<', end: '>' }
-                    });
+                    const doc = new docxtemplater(zip, { delimiters: { start: '<', end: '>' } });
                     
                     doc.setData(rowData);
                     doc.render();
@@ -446,7 +524,6 @@
                         mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
                     });
                     
-                    // Updated filename with enumeration
                     const filename = `${index + 1}_Акт_${rowData.num_p || 'НомерВідсутній'}.docx`;
                     saveAs(out, filename);
                 }
@@ -463,17 +540,11 @@
         generateBtn.addEventListener('click', generateDocuments);
         generateBtnTop.addEventListener('click', generateDocuments);
 
-        // Add keybindings for generation (Enter) and to exit editing (Esc)
         document.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
-                // Do not generate if the user is currently typing in a cell
-                if (document.activeElement.classList.contains('editable-cell')) {
-                    return; 
-                }
+            if (event.key === 'Enter' && !document.activeElement.classList.contains('editable-cell')) {
                 event.preventDefault();
                 generateDocuments();
-            } else if (event.key === 'Escape' || event.key === 'Esc') { // 'Esc' for older browsers
-                // If the user is in a cell, remove focus from it.
+            } else if (event.key === 'Escape' || event.key === 'Esc') {
                 if (document.activeElement.classList.contains('editable-cell')) {
                     document.activeElement.blur();
                 }
@@ -483,28 +554,46 @@
         document.addEventListener('DOMContentLoaded', () => {
             initTable();
 
-            // Add live validation for the "Номер" field (must be 6 digits)
             tableBody.addEventListener('input', (event) => {
                 const cell = event.target;
-                if (cell.classList.contains('editable-cell')) {
-                    const parentTd = cell.closest('td');
-                    if (!parentTd) return;
+                if (!cell.classList.contains('editable-cell')) return;
+                
+                const parentTd = cell.closest('td');
+                const parentRow = cell.closest('tr');
+                if (!parentTd || !parentRow) return;
+
+                const cellIndex = parentTd.cellIndex;
+
+                // --- Validation for "Номер" field (column index 2) ---
+                if (cellIndex === 2) { 
+                    const text = cell.textContent.trim();
+                    cell.classList.toggle('invalid', text !== '' && !/^\d{6}$/.test(text));
+                }
+                
+                // --- Auto-correction and Validation for Date fields (column indices 6, 7) ---
+                const isDateCell = cellIndex === 6 || cellIndex === 7;
+                if (isDateCell) {
+                    const originalText = cell.textContent;
+                    const correctedText = originalText.replace(/[,/|;]/g, '.');
                     
-                    // The "Номер" field is the third <td> in the row (index 2) due to the new '#' column
-                    if (parentTd.cellIndex === 2) { 
-                        const text = cell.textContent.trim();
-                        // An empty cell is not 'invalid', just incomplete. 
-                        // It's invalid if it has content that doesn't match the format.
-                        if (text !== '' && !/^\d{6}$/.test(text)) {
-                            cell.classList.add('invalid');
-                        } else {
-                            cell.classList.remove('invalid');
+                    if (originalText !== correctedText) {
+                        const selection = window.getSelection();
+                        const range = selection.getRangeAt(0);
+                        const offset = range.startOffset;
+                        cell.textContent = correctedText;
+                        if (cell.firstChild) {
+                            const newOffset = Math.min(offset, cell.firstChild.length);
+                            const newRange = document.createRange();
+                            newRange.setStart(cell.firstChild, newOffset);
+                            newRange.collapse(true);
+                            selection.removeAllRanges();
+                            selection.addRange(newRange);
                         }
                     }
+                    validateDateRow(parentRow);
                 }
             });
 
-            // Set placeholders for the first row to guide the user
             const firstRowCells = tableBody.querySelectorAll('tr:first-child .editable-cell');
             if (firstRowCells.length > 0) {
                 const placeholders = [
