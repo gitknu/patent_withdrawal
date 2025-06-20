@@ -10,19 +10,20 @@
     <script src="https://unpkg.com/pizzip@3.1.6/dist/pizzip-utils.js"></script>
     <style>
         :root {
-            --primary: #007bff; /* Simple primary color */
+            --primary: #007bff;
             --border-color: #ccc;
             --background-color: #f8f9fa;
             --text-color: #212529;
             --light-text: #6c757d;
             --success: #28a745;
             --error: #dc3545;
+            --grey: #adb5bd;
         }
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: sans-serif; /* Simpler font stack */
+            font-family: sans-serif;
         }
         body {
             background-color: var(--background-color);
@@ -35,33 +36,23 @@
             margin: 0 auto;
         }
         header {
-            text-align: center;
             padding-bottom: 20px;
             margin-bottom: 20px;
             border-bottom: 1px solid var(--border-color);
-            position: relative;
         }
-        h1 {
-            font-size: 2rem;
-            color: var(--text-color);
-        }
-        .subtitle {
-            color: var(--light-text);
-            font-size: 1rem;
-        }
-        .status-bar {
+        .header-main {
             display: flex;
             justify-content: space-between;
-            background: white;
-            border-radius: 5px;
-            border: 1px solid var(--border-color);
-            padding: 10px;
-            margin-bottom: 20px;
+            align-items: center;
+            margin-bottom: 10px;
         }
-        .status-item {
-            text-align: center;
-            flex: 1;
-            padding: 5px;
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .status-counter {
+            text-align: left;
         }
         .status-value {
             font-weight: 700;
@@ -71,6 +62,16 @@
         .status-label {
             font-size: 0.9rem;
             color: var(--light-text);
+        }
+        h1 {
+            font-size: 2rem;
+            color: var(--text-color);
+            text-align: center;
+        }
+        .subtitle {
+            color: var(--light-text);
+            font-size: 1rem;
+            text-align: center;
         }
         .card {
             background: white;
@@ -94,11 +95,26 @@
             padding: 8px 10px;
             border: 1px solid var(--border-color);
             text-align: left;
+            vertical-align: middle;
         }
         th {
             background: #f1f1f1;
             font-weight: 600;
         }
+        .status-light-th {
+            width: 30px;
+            text-align: center;
+        }
+        .status-light {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            transition: background-color 0.3s;
+        }
+        .status-grey { background-color: var(--grey); }
+        .status-red { background-color: var(--error); }
+        .status-green { background-color: var(--success); }
         .editable-cell {
             padding: 6px;
             min-height: 30px;
@@ -111,7 +127,7 @@
             pointer-events: none;
         }
         .editable-cell:focus {
-            border-color: var(--primary); /* Simple focus indicator */
+            border-color: var(--primary);
             background: #eef4ff;
         }
         .btn-container {
@@ -132,7 +148,7 @@
             gap: 8px;
         }
         .btn:hover {
-            background-color: #0056b3; /* Darker on hover */
+            background-color: #0056b3;
         }
         .notification {
             position: fixed;
@@ -144,18 +160,14 @@
             z-index: 1000;
             opacity: 0;
             transition: opacity 0.3s;
-            display: none; /* Use display to hide/show */
+            display: none;
         }
         .notification.show {
             opacity: 1;
             display: block;
         }
-        .notification.success {
-            background-color: var(--success);
-        }
-        .notification.error {
-            background-color: var(--error);
-        }
+        .notification.success { background-color: var(--success); }
+        .notification.error { background-color: var(--error); }
         .loader {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -191,27 +203,25 @@
             font-weight: 600;
             color: var(--text-color);
         }
-        .top-generate-btn {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-        }
         .top-generate-btn .btn {
             padding: 8px 15px;
             font-size: 0.9rem;
         }
         @media (max-width: 768px) {
-            .status-bar {
+            .header-main {
                 flex-direction: column;
-                gap: 10px;
+                gap: 15px;
+            }
+            .header-status {
+                width: 100%;
+                justify-content: space-around;
             }
             .top-generate-btn {
-                position: static;
-                margin-top: 15px;
-                text-align: center;
+                width: 100%;
             }
             .top-generate-btn .btn {
-                 width: 100%;
+                width: 100%;
+                justify-content: center;
             }
             h1 {
                 font-size: 1.8rem;
@@ -225,37 +235,41 @@
 <body>
     <div class="container">
         <header>
+            <div class="header-main">
+                <div class="header-status">
+                    <div class="status-counter">
+                        <div class="status-value" id="filled-rows">0/10</div>
+                        <div class="status-label">Заповнено рядків</div>
+                    </div>
+                    <div class="status-counter">
+                        <div class="status-value" id="to-generate">0</div>
+                        <div class="status-label">Буде згенеровано</div>
+                    </div>
+                </div>
+                <div class="top-generate-btn">
+                    <button id="generate-btn-top" class="btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                        </svg>
+                        Згенерувати
+                    </button>
+                </div>
+            </div>
             <h1>Генератор актів списання</h1>
             <p class="subtitle">Для швидкого переходу на нове поле тисніть TAB. Для генерації Enter</p>
-            <div class="top-generate-btn">
-                <button id="generate-btn-top" class="btn">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                        <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
-                        <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
-                    </svg>
-                    Згенерувати
-                </button>
-            </div>
         </header>
-        <div class="status-bar">
-            <div class="status-item">
-                <div class="status-value" id="filled-rows">0/10</div>
-                <div class="status-label">Заповнено рядків</div>
-            </div>
-            <div class="status-item">
-                <div class="status-value" id="to-generate">0</div>
-                <div class="status-label">Буде згенеровано</div>
-            </div>
-            <div class="status-item">
-                <div class="status-value" id="status">Готово</div>
-                <div class="status-label">Статус</div>
-            </div>
-        </div>
+
         <div class="card">
             <h2 class="card-title">Таблиця даних</h2>
             <table>
                 <thead>
                     <tr>
+                        <th class="status-light-th">
+                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
+                            </svg>
+                        </th>
                         <th>Номер</th>
                         <th>Тип</th>
                         <th>Назва</th>
@@ -290,18 +304,21 @@
         const TEMPLATE_URL = 'https://gitknu.github.io/patent_withdrawal/input_patent_withdrawal.docx';
         const PLACEHOLDERS = ['num_p', 'type', 'name', 'num_db', 'start', 'end', 'value', 'person'];
         const ROWS_COUNT = 10;
+
         const tableBody = document.getElementById('table-body');
         const generateBtn = document.getElementById('generate-btn');
         const generateBtnTop = document.getElementById('generate-btn-top');
         const notification = document.getElementById('notification');
         const filledRowsEl = document.getElementById('filled-rows');
         const toGenerateEl = document.getElementById('to-generate');
-        const statusEl = document.getElementById('status');
         const loader = document.getElementById('loader');
+
+        // Initialize the table with empty rows
         function initTable() {
             let html = '';
             for (let i = 0; i < ROWS_COUNT; i++) {
                 html += '<tr>';
+                html += '<td><div class="status-light status-grey"></div></td>'; // Status light cell
                 for (let j = 0; j < PLACEHOLDERS.length; j++) {
                     html += `<td><div class="editable-cell" contenteditable="true"></div></td>`;
                 }
@@ -311,35 +328,40 @@
             updateStatus();
             tableBody.addEventListener('input', updateStatus);
         }
+
+        // Update counters and row status lights
         function updateStatus() {
             const rows = tableBody.querySelectorAll('tr');
-            let filledCount = 0;
+            let completeRowCount = 0;
+
             rows.forEach(row => {
                 const cells = row.querySelectorAll('.editable-cell');
-                let hasData = false;
-                let allFilled = true;
+                const statusLight = row.querySelector('.status-light');
+                let filledCellCount = 0;
+                
                 cells.forEach(cell => {
                     if (cell.textContent.trim() !== '') {
-                        hasData = true;
-                    } else {
-                        allFilled = false;
+                        filledCellCount++;
                     }
                 });
-                if (hasData && allFilled) {
-                    filledCount++;
+
+                // Update status light based on cell content
+                if (filledCellCount === 0) {
+                    statusLight.className = 'status-light status-grey'; // Empty
+                } else if (filledCellCount < cells.length) {
+                    statusLight.className = 'status-light status-red'; // Partially filled
+                } else {
+                    statusLight.className = 'status-light status-green'; // Complete
+                    completeRowCount++;
                 }
             });
-            filledRowsEl.textContent = `${filledCount}/${ROWS_COUNT}`;
-            toGenerateEl.textContent = filledCount;
-            const statusElement = document.getElementById('status'); // Re-getting element for clarity
-            if (filledCount > 0) {
-                statusElement.textContent = 'Готово до генерації';
-                statusElement.style.color = 'var(--success)';
-            } else {
-                statusElement.textContent = 'Очікує вводу даних';
-                statusElement.style.color = 'var(--light-text)';
-            }
+
+            // Update header counters
+            filledRowsEl.textContent = `${completeRowCount}/${ROWS_COUNT}`;
+            toGenerateEl.textContent = completeRowCount;
         }
+
+        // Show a success or error notification
         function showNotification(message, isSuccess = true) {
             notification.textContent = message;
             notification.className = `notification ${isSuccess ? 'success' : 'error'} show`;
@@ -347,36 +369,42 @@
                 notification.classList.remove('show');
             }, 5000);
         }
+
+        // Get data from all completely filled rows
         function getTableData() {
             const data = [];
             const rows = tableBody.querySelectorAll('tr');
             rows.forEach(row => {
                 const cells = row.querySelectorAll('.editable-cell');
-                const rowData = {};
-                let hasData = false;
                 let allFilled = true;
+                let hasData = false;
+                const rowData = {};
+
                 cells.forEach((cell, index) => {
                     const value = cell.textContent.trim();
-                    rowData[PLACEHOLDERS[index]] = value; 
+                    rowData[PLACEHOLDERS[index]] = value;
                     if (value !== '') hasData = true;
                     if (value === '') allFilled = false;
                 });
+
                 if (hasData && allFilled) {
                     data.push(rowData);
                 }
             });
             return data;
         }
+
+        // Generate and download DOCX files
         async function generateDocuments() {
             const data = getTableData();
             if (data.length === 0) {
-                showNotification('Помилка: Немає даних для генерації. Заповніть хоча б один рядок повністю.', false);
+                showNotification('Помилка: Немає повністю заповнених рядків для генерації.', false);
                 return;
             }
+
             try {
                 loader.classList.add('active');
-                statusEl.textContent = 'Генеруємо...';
-                statusEl.style.color = 'var(--primary)';
+                
                 const templateContent = await new Promise((resolve, reject) => {
                     PizZipUtils.getBinaryContent(TEMPLATE_URL, (error, content) => {
                         if (error) {
@@ -386,45 +414,55 @@
                         }
                     });
                 });
+
                 for (const [index, rowData] of data.entries()) {
                     const zip = new PizZip(templateContent);
-                    const doc = new docxtemplater();
-                    doc.loadZip(zip);
-                    doc.setOptions({
-                        delimiters: {
-                            start: '<',
-                            end: '>'
-                        }
+                    const doc = new docxtemplater(zip, {
+                        delimiters: { start: '<', end: '>' }
                     });
+                    
                     doc.setData(rowData);
                     doc.render();
+
                     const out = doc.getZip().generate({
                         type: 'blob',
                         mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
                     });
-                    const filename = `Документ_${index + 1}_${rowData.name.substring(0, 20) || 'без_назви'}.docx`;
+
+                    const filename = `Документ_${rowData.num_p || (index + 1)}_${rowData.name.substring(0, 20) || 'без_назви'}.docx`;
                     saveAs(out, filename);
-                } 
+                }
+
                 showNotification(`Успішно згенеровано ${data.length} документів!`);
-                statusEl.textContent = 'Готово';
-                statusEl.style.color = 'var(--success)';
             } catch (error) {
                 console.error('Generation error:', error);
-                showNotification(`Помилка: ${error.message || 'Не вдалося згенерувати документи'}`, false);
-                statusEl.textContent = 'Помилка';
-                statusEl.style.color = 'var(--error)';
+                showNotification(`Критична помилка: ${error.message || 'Не вдалося згенерувати документи'}`, false);
             } finally {
                 loader.classList.remove('active');
             }
         }
+
         generateBtn.addEventListener('click', generateDocuments);
-        generateBtnTop.addEventListener('click', generateDocuments); 
+        generateBtnTop.addEventListener('click', generateDocuments);
+
+        // Add keybinding for generation
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                // Check if the focus is inside an editable cell to prevent generation while typing.
+                if (document.activeElement.classList.contains('editable-cell')) {
+                    return; 
+                }
+                event.preventDefault(); // Prevent default Enter behavior (like adding a new line)
+                generateDocuments();
+            }
+        });
+
         document.addEventListener('DOMContentLoaded', () => {
             initTable();
-            // Set placeholders for the first row
+            // Set placeholders for the first row to guide the user
             const firstRowCells = tableBody.querySelectorAll('tr:first-child .editable-cell');
             if (firstRowCells.length > 0) {
-                 const placeholders = [
+                const placeholders = [
                     '123456', 'винахід', 'МАШИНА ЧАСУ', '123456789',
                     '01.01.2000', '31.12.2039', '1000,00', 'Тарас ШЕВЧЕНКО'
                 ];
