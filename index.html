@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Генератор Документів</title>
+    <title>Акти списання</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.45.0/docxtemplater.js"></script>
     <script src="https://unpkg.com/pizzip@3.1.6/dist/pizzip.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.8/FileSaver.js"></script>
@@ -62,7 +62,6 @@
         .card { overflow-x: auto; }
     }
 </style>
-
 </head>
 <body>
     <div class="container">
@@ -138,7 +137,6 @@
         const PLACEHOLDERS = ['num_p', 'type', 'name', 'num_db', 'start', 'end', 'value', 'person'];
         const INITIAL_ROWS_COUNT = 3;
         const MAX_ROWS_COUNT = 50;
-
         const checks = [
             { selector: 'td:nth-child(3) .editable-cell.invalid', message: 'Помилка: "Номер" має містити від 5 до 7 <b>унікальних</b> цифр.' },
             { selector: 'td:nth-child(4) .editable-cell.invalid', message: 'Помилка: "Тип" невірний. Введіть "в", "к" або "т".' },
@@ -147,7 +145,6 @@
             { selector: 'td:nth-child(9) .editable-cell.invalid', message: 'Помилка: "Вартість" має формат <b>1234,56</b>.' },
             { selector: 'td:nth-child(10) .editable-cell.invalid', message: 'Помилка: "Підписує" має формат <b>Ім\'я ПРІЗВИЩЕ</b>.' }
         ];
-
         const tableBody = document.getElementById('table-body');
         const generateBtn = document.getElementById('generate-btn');
         const generateBtnTop = document.getElementById('generate-btn-top');
@@ -156,7 +153,6 @@
         const toGenerateEl = document.getElementById('to-generate');
         const loader = document.getElementById('loader');
         const guideTextElement = document.getElementById('guide-text-element');
-
         let tutorialActive = true;
         let tutorialStep = 0;
         const tutorialSteps = [
@@ -170,23 +166,19 @@
             { text: "Супер! Тепер тисніть Enter, щоб згенерувати документи", trigger: 'esc_pressed' },
             { text: "<span class='final-hint'>Shift+Tab: Назад | Tab: Вперед | Esc: Вийти | Enter: Згенерувати</span>", trigger: 'end' }
         ];
-
         function hideGuideAlert() {
             if (guideTextElement.classList.contains('error')) {
                 showGuideText(tutorialSteps.length - 1);
             }
         }
-
         function showGuideAlert(message) {
             if (tutorialActive) return;
-            
             guideTextElement.classList.remove('visible');
             setTimeout(() => {
                 guideTextElement.innerHTML = message;
                 guideTextElement.classList.add('error', 'visible');
             }, 150);
         }
-
         function showGuideText(stepIndex) {
             if (!tutorialActive && stepIndex < tutorialSteps.length - 1) return;
             if (tutorialActive && stepIndex < tutorialStep) return;
