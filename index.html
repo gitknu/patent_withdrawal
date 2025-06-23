@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генератор Документів</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.45.0/docxtemplater.js"></script>
+    <script src="https://unpkg.com/pizzip@3.1.6/dist/pizzip.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.8/FileSaver.js"></script>
+    <script src="https://unpkg.com/pizzip@3.1.6/dist/pizzip-utils.js"></script>
+    <style>
+    :root { --primary: #007bff; --border-color: #ccc; --background-color: #f8f9fa; --text-color: #212529; --light-text: #6c757d; --success: #28a745; --error: #dc3545; --grey: #adb5bd; --guide-bg: #eef4ff; --guide-text: #0056b3; --error-bg: #f8d7da; --error-text: #721c24; }
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
+    body { background-color: var(--background-color); color: var(--text-color); line-height: 1.5; padding: 15px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    header { padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); position: relative; }
+    .header-main { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .header-status { display: flex; align-items: center; gap: 20px; }
+    .status-counter { text-align: left; }
+    .status-value { font-weight: 700; font-size: 1.5rem; color: var(--primary); }
+    .status-label { font-size: 0.9rem; color: var(--light-text); }
+    h1 { font-size: 2rem; color: var(--text-color); text-align: center; margin-bottom: 8px; }
+    .subtitle { color: var(--light-text); font-size: 1rem; text-align: center; min-height: 40px; }
+    .guide-container { text-align: center; padding-top: 5px; min-height: 24px; }
+    .guide-text { display: inline-block; background-color: var(--guide-bg); color: var(--guide-text); padding: 8px 15px; border-radius: 20px; font-size: 0.95rem; font-weight: 500; opacity: 0; transform: translateY(-10px); transition: opacity 0.4s ease-out, transform 0.4s ease-out, background-color 0.3s, color 0.3s; max-width: 90%; }
+    .guide-text.visible { opacity: 1; transform: translateY(0); }
+    .final-hint { color: var(--light-text); font-weight: 500; }
+    .guide-text.error { background-color: var(--error-bg); color: var(--error-text); }
+    .card { background: white; border-radius: 5px; border: 1px solid var(--border-color); padding: 20px; margin-bottom: 20px; }
+    .card-title { font-size: 1.5rem; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    th, td { padding: 8px 10px; border: 1px solid var(--border-color); text-align: left; vertical-align: middle; }
+    th { background: #f1f1f1; font-weight: 600; }
+    .status-light-th { width: 30px; text-align: center; }
+    .status-light { width: 12px; height: 12px; border-radius: 50%; display: inline-block; transition: background-color 0.3s; }
+    .status-grey { background-color: var(--grey); }
+    .status-red { background-color: var(--error); }
+    .status-green { background-color: var(--success); }
+    .editable-cell { padding: 6px; min-height: 30px; outline: none; border: 1px solid transparent; }
+    .editable-cell[data-placeholder]:empty:not(:focus):before { content: attr(data-placeholder); color: var(--light-text); opacity: 0.7; pointer-events: none; }
+    .editable-cell:focus { border-color: var(--primary); background: #eef4ff; }
+    .editable-cell.invalid { border-color: var(--error); box-shadow: 0 0 4px rgba(220, 53, 69, 0.4); border-radius: 3px; }
+    .btn-container { text-align: center; margin-top: 20px; }
+    .btn { background-color: var(--primary); color: white; border: 1px solid var(--primary); padding: 10px 20px; border-radius: 5px; font-weight: 600; cursor: pointer; font-size: 1rem; display: inline-flex; align-items: center; gap: 8px; }
+    .btn:hover { background-color: #0056b3; }
+    .notification { position: fixed; top: 20px; right: 20px; padding: 15px; border-radius: 5px; color: white; z-index: 1000; opacity: 0; transition: opacity 0.3s; display: none; }
+    .notification.show { opacity: 1; display: block; }
+    .notification.success { background-color: var(--success); }
+    .notification.error { background-color: var(--error); }
+    .loader { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255, 255, 255, 0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+    .loader.active { opacity: 1; pointer-events: all; }
+    .spinner { width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .loader-text { font-size: 1.1rem; font-weight: 600; color: var(--text-color); }
+    .top-generate-btn .btn { padding: 8px 15px; font-size: 0.9rem; }
+    @media (max-width: 768px) {
+        .header-main { flex-direction: column; gap: 15px; }
+        .header-status { width: 100%; justify-content: space-around; }
+        .top-generate-btn { width: 100%; }
+        .top-generate-btn .btn { width: 100%; justify-content: center; }
+        h1 { font-size: 1.8rem; }
+        .card { overflow-x: auto; }
+    }
+</style>
+
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-main">
+                <div class="header-status">
+                    <div class="status-counter">
+                        <div class="status-value" id="filled-rows">0/3</div>
+                        <div class="status-label">Заповнено рядків</div>
+                    </div>
+                    <div class="status-counter">
+                        <div class="status-value" id="to-generate">0</div>
+                        <div class="status-label">Буде згенеровано</div>
+                    </div>
+                </div>
+                <div class="top-generate-btn">
+                    <button id="generate-btn-top" class="btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                        </svg>
+                        Згенерувати
+                    </button>
+                </div>
+            </div>
+            <h1>Генератор актів списання</h1>
+            <div class="guide-container">
+                <span id="guide-text-element" class="guide-text"></span>
+            </div>
+        </header>
+        <div class="card">
+            <h2 class="card-title">Таблиця даних</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th class="status-light-th">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
+                            </svg>
+                        </th>
+                        <th>Номер</th>
+                        <th>Тип</th>
+                        <th>Назва</th>
+                        <th>Номер НД</th>
+                        <th>Початок</th>
+                        <th>Кінець</th>
+                        <th>Вартість</th>
+                        <th>Підписує</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                </tbody>
+            </table>
+            <div class="btn-container">
+                <button id="generate-btn" class="btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                        <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                    </svg>
+                    Згенерувати DOCX файли
+                </button>
+            </div>
+        </div>
+        <div class="notification" id="notification"></div>
+        <div class="loader" id="loader">
+            <div class="spinner"></div>
+            <div class="loader-text">Генеруємо документи...</div>
+        </div>
+    </div>
+    <script>
+        const TEMPLATE_URL = 'https://gitknu.github.io/patent_withdrawal/input_patent_withdrawal.docx';
+        const PLACEHOLDERS = ['num_p', 'type', 'name', 'num_db', 'start', 'end', 'value', 'person'];
+        const INITIAL_ROWS_COUNT = 3;
+        const MAX_ROWS_COUNT = 50;
+
+        const checks = [
+            { selector: 'td:nth-child(3) .editable-cell.invalid', message: 'Помилка: "Номер" має містити від 5 до 7 <b>унікальних</b> цифр.' },
+            { selector: 'td:nth-child(4) .editable-cell.invalid', message: 'Помилка: "Тип" невірний. Введіть "в", "к" або "т".' },
+            { selector: 'td:nth-child(6) .editable-cell.invalid', message: 'Помилка: "Номер НД" має містити рівно <b>9</b> цифр.' },
+            { selector: 'td:nth-child(7) .editable-cell.invalid, td:nth-child(8) .editable-cell.invalid', message: 'Помилка: Перевірте <b>дати</b>. Невірний формат або логіка.' },
+            { selector: 'td:nth-child(9) .editable-cell.invalid', message: 'Помилка: "Вартість" має формат <b>1234,56</b>.' },
+            { selector: 'td:nth-child(10) .editable-cell.invalid', message: 'Помилка: "Підписує" має формат <b>Ім\'я ПРІЗВИЩЕ</b>.' }
+        ];
+
+        const tableBody = document.getElementById('table-body');
+        const generateBtn = document.getElementById('generate-btn');
+        const generateBtnTop = document.getElementById('generate-btn-top');
+        const notification = document.getElementById('notification');
+        const filledRowsEl = document.getElementById('filled-rows');
+        const toGenerateEl = document.getElementById('to-generate');
+        const loader = document.getElementById('loader');
+        const guideTextElement = document.getElementById('guide-text-element');
+
+        let tutorialActive = true;
+        let tutorialStep = 0;
+        const tutorialSteps = [
+            { text: "Введіть у першому полі від 5 до 7 цифр номеру патенту", trigger: 'start' },
+            { text: "Чудово! Натисніть Tab для переходу далі", trigger: 'num_p_valid' },
+            { text: "Тепер введіть 'в', 'к' або 'т' для вибору типу", trigger: 'type_focus' },
+            { text: "Добре. Для навігації використовуйте Tab та Shift + Tab", trigger: 'type_valid' },
+            { text: "Заповніть решту полів у цьому рядку", trigger: 'name_focus' },
+            { text: "Майже готово! Заповніть останнє поле у форматі 'Ім\'я ПРІЗВИЩЕ'", trigger: 'person_focus' },
+            { text: "Рядок заповнено! Натисніть Esc, щоб вийти з редагування", trigger: 'person_valid' },
+            { text: "Супер! Тепер тисніть Enter, щоб згенерувати документи", trigger: 'esc_pressed' },
+            { text: "<span class='final-hint'>Shift+Tab: Назад | Tab: Вперед | Esc: Вийти | Enter: Згенерувати</span>", trigger: 'end' }
+        ];
+
+        function hideGuideAlert() {
+            if (guideTextElement.classList.contains('error')) {
+                showGuideText(tutorialSteps.length - 1);
+            }
+        }
+
+        function showGuideAlert(message) {
+            if (tutorialActive) return;
+            
+            guideTextElement.classList.remove('visible');
+            setTimeout(() => {
+                guideTextElement.innerHTML = message;
+                guideTextElement.classList.add('error', 'visible');
+            }, 150);
+        }
+
+        function showGuideText(stepIndex) {
+            if (!tutorialActive && stepIndex < tutorialSteps.length - 1) return;
+            if (tutorialActive && stepIndex < tutorialStep) return;
+            
+            tutorialStep = stepIndex;
+            const step = tutorialSteps[stepIndex];
+            
+            guideTextElement.classList.remove('visible'); // Animate out first
+            
+            // Then, update content and classes together to prevent race conditions
+            setTimeout(() => {
+                guideTextElement.innerHTML = step.text;
+                guideTextElement.classList.remove('error'); // Ensure error class is removed
+                guideTextElement.classList.add('visible');
+            }, 200);
+        }
+
+        function endTutorial() {
+            if (!tutorialActive) return;
+            tutorialActive = false;
+            setTimeout(() => showGuideText(tutorialSteps.length - 1), 500);
+        }
+
+        function validatePersonName(cell) {
+            const text = cell.textContent.trim();
+            const nameRegex = /^[А-ЯІЇЄҐ][а-яіїєґ']+ [А-ЯІЇЄҐ'-]+$/u;
+            cell.classList.toggle('invalid', text !== '' && !nameRegex.test(text));
+        }
+
+        function isValidDateString(dateStr) {
+            if (!/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) return false;
+            const parts = dateStr.split('.');
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10);
+            const year = parseInt(parts[2], 10);
+            if (year < 1939 || year > 2100 || month < 1 || month > 12) return false;
+            const date = new Date(year, month - 1, day);
+            return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+        }
+
+        function isValidCostString(costStr) {
+            return /^\d{1,9},\d{2}$/.test(costStr);
+        }
+
+        function parseDate(dateStr) {
+            const parts = dateStr.split('.');
+            return new Date(parts[2], parts[1] - 1, parts[0]);
+        }
+
+        function validateCostRow(cell) {
+            const costStr = cell.textContent.trim();
+            cell.classList.toggle('invalid', costStr !== '' && !isValidCostString(costStr));
+        }
+
+        function validateNumberUniqueness() {
+            const numberCells = tableBody.querySelectorAll('td:nth-child(3) .editable-cell');
+            const values = {};
+            numberCells.forEach(cell => {
+                const value = cell.textContent.trim();
+                if (value) {
+                    if (!values[value]) values[value] = { count: 0, cells: [] };
+                    values[value].count++;
+                    values[value].cells.push(cell);
+                }
+            });
+            numberCells.forEach(cell => {
+                const text = cell.textContent.trim();
+                const isLengthInvalid = text !== '' && !/^\d{5,7}$/.test(text); // UPDATED: 5 to 7 digits
+                const isDuplicate = text !== '' && values[text] && values[text].count > 1;
+                cell.classList.toggle('invalid', isLengthInvalid || isDuplicate);
+            });
+            const firstNumCell = tableBody.querySelector('tr:first-child td:nth-child(3) .editable-cell');
+            if (firstNumCell && !firstNumCell.classList.contains('invalid') && firstNumCell.textContent.length >= 5 && firstNumCell.textContent.length <= 7) { // UPDATED
+                showGuideText(1);
+            }
+        }
+
+        function validateDateRow(row) {
+            const startDateCell = row.querySelector('td:nth-child(7) .editable-cell');
+            const endDateCell = row.querySelector('td:nth-child(8) .editable-cell');
+            const typeCell = row.querySelector('td:nth-child(4) .editable-cell');
+            if (!startDateCell || !endDateCell || !typeCell) return;
+            const startStr = startDateCell.textContent.trim();
+            const endStr = endDateCell.textContent.trim();
+            startDateCell.classList.remove('invalid');
+            endDateCell.classList.remove('invalid');
+            const isStartFormatValid = startStr === '' || isValidDateString(startStr);
+            const isEndFormatValid = endStr === '' || isValidDateString(endStr);
+            if (startStr !== '' && !isStartFormatValid) startDateCell.classList.add('invalid');
+            if (endStr !== '' && !isEndFormatValid) endDateCell.classList.add('invalid');
+            if (isStartFormatValid && isEndFormatValid && startStr !== '' && endStr !== '') {
+                const startDate = parseDate(startStr);
+                const endDate = parseDate(endStr);
+                if (endDate <= startDate) {
+                    startDateCell.classList.add('invalid');
+                    endDateCell.classList.add('invalid');
+                    return;
+                }
+                const typeStr = typeCell.textContent.trim();
+                let maxYears = 0;
+                if (typeStr === 'корисну модель' || typeStr === 'торговельну марку') {
+                    maxYears = 20;
+                } else if (typeStr === 'винахід') {
+                    maxYears = 30;
+                }
+                if (maxYears > 0) {
+                    const maxEndDate = new Date(startDate.getTime());
+                    maxEndDate.setFullYear(maxEndDate.getFullYear() + maxYears);
+                    if (endDate > maxEndDate) {
+                        startDateCell.classList.add('invalid');
+                        endDateCell.classList.add('invalid');
+                    }
+                }
+            }
+        }
+
+        function addNewRow() {
+            const newIndex = tableBody.rows.length;
+            const newRow = document.createElement('tr');
+            let html = `<td>${newIndex + 1}</td>`;
+            html += '<td><div class="status-light status-grey"></div></td>';
+            PLACEHOLDERS.forEach(() => {
+                html += `<td><div class="editable-cell" contenteditable="true"></div></td>`;
+            });
+            newRow.innerHTML = html;
+            tableBody.appendChild(newRow);
+        }
+
+        function initTable() {
+            tableBody.innerHTML = '';
+            for (let i = 0; i < INITIAL_ROWS_COUNT; i++) addNewRow();
+            updateStatus();
+            const firstCell = tableBody.querySelector('tr:first-child .editable-cell');
+            if (firstCell) firstCell.focus();
+        }
+
+        function updateStatus() {
+            const rows = tableBody.querySelectorAll('tr');
+            let completeRowCount = 0;
+            rows.forEach((row, rowIndex) => {
+                const cells = row.querySelectorAll('.editable-cell');
+                const statusLight = row.querySelector('.status-light');
+                let filledCellCount = 0;
+                let hasInvalidCells = !!row.querySelector('.editable-cell.invalid');
+                cells.forEach(cell => {
+                    if (cell.textContent.trim() !== '') filledCellCount++;
+                });
+                const isComplete = filledCellCount === cells.length && !hasInvalidCells;
+                if (filledCellCount === 0) {
+                    statusLight.className = 'status-light status-grey';
+                } else if (!isComplete) {
+                    statusLight.className = 'status-light status-red';
+                } else {
+                    statusLight.className = 'status-light status-green';
+                    completeRowCount++;
+                }
+                if(tutorialActive && rowIndex === 0 && isComplete) {
+                    if(document.activeElement === row.querySelector('td:last-child .editable-cell')) {
+                         showGuideText(6);
+                    }
+                }
+            });
+            filledRowsEl.textContent = `${completeRowCount}/${rows.length}`;
+            toGenerateEl.textContent = completeRowCount;
+        }
+
+        function showNotification(message, isSuccess = true) {
+            notification.textContent = message;
+            notification.className = `notification ${isSuccess ? 'success' : 'error'} show`;
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 5000);
+        }
+
+        function getTableData() {
+            const data = [];
+            tableBody.querySelectorAll('tr').forEach(row => {
+                const cells = row.querySelectorAll('.editable-cell');
+                let allFilled = true, hasData = false;
+                const rowData = {};
+                cells.forEach((cell, index) => {
+                    const value = cell.textContent.trim();
+                    rowData[PLACEHOLDERS[index]] = value;
+                    if (value !== '') hasData = true;
+                    else allFilled = false;
+                });
+                if (hasData && allFilled && !row.querySelector('.editable-cell.invalid')) {
+                    data.push(rowData);
+                }
+            });
+            return data;
+        }
+
+        async function generateDocuments() {
+            // If the user tries to generate, the tutorial ends.
+            if (tutorialActive) {
+                endTutorial();
+            }
+
+            for (const check of checks) {
+                const invalidCells = tableBody.querySelectorAll(check.selector);
+                if (invalidCells.length > 0) {
+                    showGuideAlert(check.message);
+                    invalidCells[0].focus();
+                    return;
+                }
+            }
+            const data = getTableData();
+            if (data.length === 0) {
+                showGuideAlert('Помилка: Немає повністю та коректно заповнених рядків для генерації.');
+                return;
+            }
+            try {
+                loader.classList.add('active');
+                const templateContent = await new Promise((resolve, reject) => {
+                    PizZipUtils.getBinaryContent(TEMPLATE_URL, (error, content) => {
+                        if (error) reject(new Error(`Помилка завантаження шаблону.`));
+                        else resolve(content);
+                    });
+                });
+                for (const [index, rowData] of data.entries()) {
+                    const zip = new PizZip(templateContent);
+                    const doc = new docxtemplater(zip, { delimiters: { start: '<', end: '>' } });
+                    doc.setData(rowData);
+                    doc.render();
+                    const out = doc.getZip().generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+                    saveAs(out, `${index + 1}_Акт_${rowData.num_p || 'Номер'}.docx`);
+                }
+                showNotification(`Успішно згенеровано ${data.length} документів!`);
+            } catch (error) {
+                console.error('Generation error:', error);
+                showGuideAlert(`Критична помилка: ${error.message}`);
+            } finally {
+                loader.classList.remove('active');
+            }
+        }
+
+        function checkAndShowLiveError(row) {
+            if (!row) return;
+            for (const check of checks) {
+                if (row.querySelector(check.selector)) {
+                    showGuideAlert(check.message);
+                    return;
+                }
+            }
+            hideGuideAlert();
+        }
+
+        generateBtn.addEventListener('click', generateDocuments);
+        generateBtnTop.addEventListener('click', generateDocuments);
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.target.classList.contains('editable-cell')) {
+                event.preventDefault();
+                generateDocuments();
+            } else if (event.key === 'Escape' || event.key === 'Esc') {
+                if (document.activeElement.classList.contains('editable-cell')) {
+                    document.activeElement.blur();
+                    if(tutorialActive) showGuideText(7);
+                }
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initTable();
+            showGuideText(0);
+
+            tableBody.addEventListener('focusin', (event) => {
+                const cell = event.target;
+                if (!cell.classList.contains('editable-cell')) return;
+
+                const parentRow = cell.closest('tr');
+                if (tutorialActive && parentRow !== tableBody.firstElementChild) {
+                    endTutorial();
+                }
+
+                if (!tutorialActive) return;
+
+                const cellIndex = cell.closest('td').cellIndex;
+                if(cellIndex === 3) showGuideText(2); // Corresponds to 'Тип'
+                if(cellIndex === 4) showGuideText(4); // Corresponds to 'Назва'
+                if(cellIndex === 9) showGuideText(5); // Corresponds to 'Підписує'
+            });
+
+            tableBody.addEventListener('keydown', (event) => {
+                const cell = event.target;
+                if (!cell.classList.contains('editable-cell')) return;
+                const isCharKey = event.key.length === 1 && !event.ctrlKey && !event.metaKey;
+                const cellIndex = cell.closest('td').cellIndex;
+                
+                if (event.key === 'Tab' && cell.classList.contains('invalid')) {
+                    event.preventDefault();
+                    return;
+                }
+                
+                const maxLengths = { 2: 7, 5: 9, 6: 10, 7: 10, 8: 12 }; // UPDATED: Max length for 'Номер' is 7
+                if (maxLengths[cellIndex] && cell.textContent.length >= maxLengths[cellIndex] && isCharKey && window.getSelection().toString().length === 0) {
+                    event.preventDefault();
+                }
+
+                if ((cellIndex === 2 || cellIndex === 5) && !/^\d$/.test(event.key) && isCharKey) event.preventDefault();
+                else if ((cellIndex === 6 || cellIndex === 7) && !/^[\d.]$/.test(event.key) && isCharKey) event.preventDefault();
+                else if (cellIndex === 8 && !/^[\d,]*$/.test(event.key) && isCharKey) event.preventDefault();
+                else if (cellIndex === 9 && !/^[А-ЯІЇЄҐа-яіїєґ' -]$/u.test(event.key) && isCharKey) event.preventDefault();
+                
+                if (cellIndex === 3) {
+                    const validTypes = ['винахід', 'корисну модель', 'торговельну марку'];
+                    if (event.key === 'Backspace' || event.key === 'Delete') {
+                        event.preventDefault(); cell.textContent = ''; cell.classList.remove('invalid');
+                        validateDateRow(cell.closest('tr')); updateStatus();
+                    } else if (validTypes.includes(cell.textContent.trim()) && isCharKey) event.preventDefault();
+                }
+            });
+
+            tableBody.addEventListener('input', (event) => {
+                const cell = event.target;
+                if (!cell.classList.contains('editable-cell')) return;
+
+                const parentTd = cell.closest('td');
+                const parentRow = cell.closest('tr');
+                if (!parentTd || !parentRow) return;
+                const cellIndex = parentTd.cellIndex;
+
+                if (cellIndex === 2) validateNumberUniqueness();
+                if (cellIndex === 3) {
+                    const text = cell.textContent.trim().toLowerCase();
+                    const typeMap = { 'в': 'винахід', 'к': 'корисну модель', 'т': 'торговельну марку' };
+                    if (text.length === 1 && typeMap[text]) {
+                        cell.textContent = typeMap[text];
+                        const range = document.createRange();
+                        const sel = window.getSelection();
+                        range.selectNodeContents(cell);
+                        range.collapse(false);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                    const validTypes = Object.values(typeMap);
+                    const isValid = cell.textContent === '' || validTypes.includes(cell.textContent);
+                    cell.classList.toggle('invalid', !isValid);
+                    if (tutorialActive && parentRow === tableBody.firstElementChild && isValid && cell.textContent !== '') showGuideText(3);
+                }
+                if (cellIndex === 5) cell.classList.toggle('invalid', cell.textContent !== '' && !/^\d{9}$/.test(cell.textContent));
+                if (cellIndex === 6 || cellIndex === 7) validateDateRow(parentRow);
+                if (cellIndex === 8) validateCostRow(cell);
+                if (cellIndex === 9) validatePersonName(cell);
+
+                if (cellIndex === 8 || cellIndex === 6 || cellIndex === 7) {
+                    const separator = (cellIndex === 8) ? ',' : '.';
+                    const wrongSeparator = (separator === ',') ? '.' : ',';
+                    if (cell.textContent.includes(wrongSeparator)) {
+                        const selection = window.getSelection();
+                        const offset = selection.getRangeAt(0).startOffset;
+                        cell.textContent = cell.textContent.replace(new RegExp(`\\${wrongSeparator}`, 'g'), separator);
+                        if (cell.firstChild) {
+                            const newOffset = Math.min(offset, cell.firstChild.length);
+                            const newRange = document.createRange();
+                            newRange.setStart(cell.firstChild, newOffset);
+                            newRange.collapse(true);
+                            selection.removeAllRanges();
+                            selection.addRange(newRange);
+                        }
+                    }
+                }
+                
+                checkAndShowLiveError(parentRow);
+
+                if (parentRow === tableBody.lastElementChild && tableBody.rows.length < MAX_ROWS_COUNT) {
+                    addNewRow();
+                }
+                updateStatus();
+            });
+
+            const firstRowCells = tableBody.querySelectorAll('tr:first-child .editable-cell');
+            const placeholders = [ '123456', 'в/к/т', 'МАШИНА ЧАСУ', '123456789', '01.01.2000', '31.12.2020', '1000,00', 'Тарас ШЕВЧЕНКО'];
+            firstRowCells.forEach((cell, index) => {
+                if (placeholders[index]) cell.setAttribute('data-placeholder', placeholders[index]);
+            });
+        });
+    </script>
+</body>
+</html>
