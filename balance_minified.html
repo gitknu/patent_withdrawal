@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Генератор постановки на баланс</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.45.0/docxtemplater.js"></script>
+<script src="https://unpkg.com/pizzip@3.1.6/dist/pizzip.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.8/FileSaver.js"></script>
+<script src="https://unpkg.com/pizzip@3.1.6/dist/pizzip-utils.js"></script>
+<style>:root{--primary:#007bff;--border-color:#ccc;--background-color:#f8f9fa;--text-color:#212529;--light-text:#6c757d;--success:#28a745;--error:#dc3545;--grey:#adb5bd;--guide-bg:#eef4ff;--guide-text:#0056b3;--error-bg:#f8d7da;--error-text:#721c24}*{margin:0;padding:0;box-sizing:border-box;font-family:sans-serif}body{background-color:var(--background-color);color:var(--text-color);line-height:1.5;padding:15px}.container{max-width:1200px;margin:0 auto}header{padding-bottom:20px;margin-bottom:20px;border-bottom:1px solid var(--border-color);position:relative}.header-main{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.header-status{display:flex;align-items:center;gap:20px}.status-counter{text-align:left}.status-value{font-weight:700;font-size:1.5rem;color:var(--primary)}.status-label{font-size:.9rem;color:var(--light-text)}h1{font-size:2rem;color:var(--text-color);text-align:center;margin-bottom:8px}.subtitle{color:var(--light-text);font-size:1rem;text-align:center;min-height:40px}.guide-container{text-align:center;padding-top:5px;min-height:24px}.guide-text{display:inline-block;background-color:var(--guide-bg);color:var(--guide-text);padding:8px 15px;border-radius:20px;font-size:.95rem;font-weight:500;opacity:0;transform:translateY(-10px);transition:opacity .4s ease-out,transform .4s ease-out,background-color .3s,color .3s;max-width:90%}.guide-text.visible{opacity:1;transform:translateY(0)}.final-hint{color:var(--light-text);font-weight:500}.guide-text.error{background-color:var(--error-bg);color:var(--error-text)}.card{background:white;border-radius:5px;border:1px solid var(--border-color);padding:20px;margin-bottom:20px}.card-title{font-size:1.5rem;margin-bottom:15px;padding-bottom:10px;border-bottom:1px solid var(--border-color)}table{width:100%;border-collapse:collapse;margin-bottom:20px}th,td{padding:8px 10px;border:1px solid var(--border-color);text-align:left;vertical-align:middle}th{background:#f1f1f1;font-weight:600}.status-light-th{width:30px;text-align:center}.status-light{width:12px;height:12px;border-radius:50%;display:inline-block;transition:background-color .3s}.status-grey{background-color:var(--grey)}.status-red{background-color:var(--error)}.status-green{background-color:var(--success)}.editable-cell{padding:6px;min-height:30px;outline:none;border:1px solid transparent}.editable-cell[data-placeholder]:empty:not(:focus):before{content:attr(data-placeholder);color:var(--light-text);opacity:.7;pointer-events:none}.editable-cell:focus{border-color:var(--primary);background:#eef4ff}.editable-cell.invalid{border-color:var(--error);box-shadow:0 0 4px rgba(220,53,69,.4);border-radius:3px}.btn-container{text-align:center;margin-top:20px}.btn{background-color:var(--primary);color:white;border:1px solid var(--primary);padding:10px 20px;border-radius:5px;font-weight:600;cursor:pointer;font-size:1rem;display:inline-flex;align-items:center;gap:8px}.btn:hover{background-color:#0056b3}.notification{position:fixed;top:20px;right:20px;padding:15px;border-radius:5px;color:white;z-index:1000;opacity:0;transition:opacity .3s;display:none}.notification.show{opacity:1;display:block}.notification.success{background-color:var(--success)}.notification.error{background-color:var(--error)}.loader{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;opacity:0;pointer-events:none;transition:opacity .3s}.loader.active{opacity:1;pointer-events:all}.spinner{width:50px;height:50px;border:4px solid #f3f3f3;border-top:4px solid var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin-bottom:15px}@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}.loader-text{font-size:1.1rem;font-weight:600;color:var(--text-color)}.top-generate-btn .btn{padding:8px 15px;font-size:.9rem}@media (max-width:768px){.header-main{flex-direction:column;gap:15px}.header-status{width:100%;justify-content:space-around}.top-generate-btn{width:100%}.top-generate-btn .btn{width:100%;justify-content:center}h1{font-size:1.8rem}.card{overflow-x:auto}}</style>
+</head>
+<body>
+<div class="container">
+<header>
+<div class="header-main">
+<div class="header-status">
+<div class="status-counter">
+<div class="status-value" id="filled-rows">0/3</div>
+<div class="status-label">Заповнено рядків</div>
+</div>
+<div class="status-counter">
+<div class="status-value" id="to-generate">0</div>
+<div class="status-label">Буде згенеровано</div>
+</div>
+</div>
+<div class="top-generate-btn">
+<button id="generate-btn-top" class="btn">
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+Згенерувати
+</button>
+</div>
+</div>
+<h1>Генератор постановки на баланс</h1>
+<div class="guide-container"><span id="guide-text-element" class="guide-text"></span></div>
+</header>
+<div class="card">
+<h2 class="card-title">Таблиця даних</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th class="status-light-th"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg></th>
+<th>Номер</th>
+<th>Тип</th>
+<th>Назва</th>
+<th>Початок</th>
+<th>Строк</th>
+<th>Вартість</th>
+<th>Підписує</th>
+</tr>
+</thead>
+<tbody id="table-body"></tbody>
+</table>
+<div class="btn-container">
+<button id="generate-btn" class="btn">
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+Згенерувати DOCX файли
+</button>
+</div>
+</div>
+<div class="notification" id="notification"></div>
+<div class="loader" id="loader">
+<div class="spinner"></div>
+<div class="loader-text">Генеруємо документи...</div>
+</div>
+</div>
+<script>
+const U='https://gitknu.github.io/patent_withdrawal/input_patent_balance.docx',H=['num_p','type','name','start','time','value','person'],R=3,M=50,C=[{s:'td:nth-child(3) .editable-cell.invalid',m:'Помилка: "Номер" має містити від 5 до 7 <b>унікальних</b> цифр.'},{s:'td:nth-child(4) .editable-cell.invalid',m:'Помилка: "Тип" невірний. Введіть "в", "к" або "т".'},{s:'td:nth-child(6) .editable-cell.invalid',m:'Помилка: "Початок" має невірний формат <b>ДД.ММ.РРРР</b>.'},{s:'td:nth-child(7) .editable-cell.invalid',m:'Помилка: "Строк" має містити рівно <b>2</b> цифри.'},{s:'td:nth-child(8) .editable-cell.invalid',m:'Помилка: "Вартість" має формат <b>1234,56</b>.'},{s:'td:nth-child(9) .editable-cell.invalid',m:'Помилка: "Підписує" має формат <b>Ім\'я ПРІЗВИЩЕ</b>.'}],S=[{t:"Введіть у першому полі від 5 до 7 цифр номеру патенту"},{t:"Чудово! Натисніть Tab для переходу далі"},{t:"Тепер введіть 'в', 'к' або 'т' для вибору типу"},{t:"Добре. Для навігації використовуйте Tab та Shift + Tab"},{t:"Заповніть решту полів у цьому рядку"},{t:"Майже готово! Заповніть останнє поле у форматі 'Ім\'я ПРІЗВИЩЕ'"},{t:"Рядок заповнено! Натисніть Esc, щоб вийти з редагування"},{t:"Супер! Тепер тисніть Enter, щоб згенерувати документи"},{t:"<span class='final-hint'>Shift+Tab: Назад | Tab: Вперед | Esc: Вийти | Enter: Згенерувати</span>"}],b=document.getElementById('table-body'),g=document.getElementById('generate-btn'),gt=document.getElementById('generate-btn-top'),n=document.getElementById('notification'),fr=document.getElementById('filled-rows'),tg=document.getElementById('to-generate'),l=document.getElementById('loader'),ge=document.getElementById('guide-text-element');let ta=!0,ts=0;
+function sA(m){if(ta)return;ge.classList.remove('visible');setTimeout(()=>{ge.innerHTML=m;ge.classList.add('error','visible')},150)}
+function sT(i){if(!ta&&i<S.length-1||ta&&i<ts)return;ts=i;const s=S[i];ge.classList.remove('visible');setTimeout(()=>{ge.innerHTML=s.t;ge.classList.remove('error');ge.classList.add('visible')},200)}
+function eT(){if(!ta)return;ta=!1;setTimeout(()=>sT(S.length-1),500)}
+function iDS(d){if(!/^\d{2}\.\d{2}\.\d{4}$/.test(d))return!1;const[D,M,Y]=d.split('.').map(p=>parseInt(p,10));if(Y<1939||Y>2100||M<1||M>12)return!1;const dt=new Date(Y,M-1,D);return dt.getFullYear()===Y&&dt.getMonth()===M-1&&dt.getDate()===D}
+function vNU(){const cs=b.querySelectorAll('td:nth-child(3) .editable-cell'),vs={};cs.forEach(c=>{const v=c.textContent.trim();if(v){if(!vs[v])vs[v]={c:0};vs[v].c++}});cs.forEach(c=>{const t=c.textContent.trim(),l=t&&!/^\d{5,7}$/.test(t),d=t&&vs[t]&&vs[t].c>1;c.classList.toggle('invalid',l||d)});const f=b.querySelector('tr:first-child td:nth-child(3) .editable-cell');if(f&&!f.classList.contains('invalid')&&f.textContent.length>=5)sT(1)}
+function aR(){const i=b.rows.length;if(i>=M)return;const r=document.createElement('tr');let h=`<td>${i+1}</td><td><div class="status-light status-grey"></div></td>`;H.forEach(()=>h+=`<td><div class="editable-cell" contenteditable="true"></div></td>`);r.innerHTML=h;b.appendChild(r)}
+function iT(){b.innerHTML='';for(let i=0;i<R;i++)aR();uS();const c=b.querySelector('tr:first-child .editable-cell');c&&c.focus()}
+function uS(){const rs=b.querySelectorAll('tr');let cr=0;rs.forEach((r,i)=>{const cs=r.querySelectorAll('.editable-cell'),sl=r.querySelector('.status-light');let fc=0,inv=!!r.querySelector('.editable-cell.invalid');cs.forEach(c=>{c.textContent.trim()!==''&&fc++});const comp=fc===cs.length&&!inv;sl.className=`status-light status-${fc===0?'grey':comp?'green':'red'}`;comp&&cr++;if(ta&&i===0&&comp&&document.activeElement===r.querySelector('td:last-child .editable-cell'))sT(6)});fr.textContent=`${cr}/${rs.length}`;tg.textContent=cr}
+function sN(m,s=!0){n.textContent=m;n.className=`notification ${s?'success':'error'} show`;setTimeout(()=>n.classList.remove('show'),5e3)}
+function gTD(){const d=[];return b.querySelectorAll('tr').forEach(r=>{const c=r.querySelectorAll('.editable-cell'),rd={};let all=!0,has=!1;c.forEach((cell,i)=>{const v=cell.textContent.trim();rd[H[i]]=v;v!==''?has=!0:all=!1});has&&all&&!r.querySelector('.editable-cell.invalid')&&d.push(rd)}),d}
+async function gDocs(){ta&&eT();for(const c of C){const i=b.querySelectorAll(c.s);if(i.length>0)return sA(c.m),void i[0].focus()}const d=gTD();if(d.length===0)return void sA('Помилка: Немає повністю та коректно заповнених рядків для генерації.');try{l.classList.add('active');const tc=await new Promise((res,rej)=>{PizZipUtils.getBinaryContent(U,(e,c)=>e?rej(new Error('Помилка завантаження шаблону.')):res(c))});for(const[i,rd]of d.entries()){const z=new PizZip(tc),doc=new docxtemplater(z,{delimiters:{start:'<',end:'>'}});doc.setData(rd);doc.render();const o=doc.getZip().generate({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});saveAs(o,`${i+1}_Акт_${rd.num_p||'Номер'}.docx`)}sN(`Успішно згенеровано ${d.length} документів!`)}catch(e){console.error('Generation error:',e);sA(`Критична помилка: ${e.message}`)}finally{l.classList.remove('active')}}
+function cE(r){if(!r)return;for(const c of C)if(r.querySelector(c.s))return void sA(c.m);ge.classList.contains('error')&&sT(S.length-1)}
+g.addEventListener('click',gDocs);gt.addEventListener('click',gDocs);document.addEventListener('keydown',e=>{'Enter'===e.key&&!e.target.classList.contains('editable-cell')?(e.preventDefault(),gDocs()):e.key.startsWith('Esc')&&document.activeElement.classList.contains('editable-cell')&&(document.activeElement.blur(),ta&&sT(7))});document.addEventListener('DOMContentLoaded',()=>{iT();sT(0);const p=['123456','в/к/т','МАШИНА ЧАСУ','01.01.2020','20','1000,00','Тарас ШЕВЧЕНКО'];b.querySelectorAll('tr:first-child .editable-cell').forEach((c,i)=>{p[i]&&c.setAttribute('data-placeholder',p[i])});b.addEventListener('focusin',e=>{const c=e.target;if(c.classList.contains('editable-cell')){const r=c.closest('tr');ta&&r!==b.firstElementChild&&eT();if(!ta)return;const i=c.closest('td').cellIndex;3===i&&sT(2);4===i&&sT(4);8===i&&sT(5)}});b.addEventListener('keydown',e=>{const c=e.target;if(!c.classList.contains('editable-cell'))return;const isChar=1===e.key.length&&!e.ctrlKey&&!e.metaKey,i=c.closest('td').cellIndex;if('Tab'===e.key&&c.classList.contains('invalid'))return void e.preventDefault();const ml={2:7,5:10,6:2,7:12};ml[i]&&c.textContent.length>=ml[i]&&isChar&&0===window.getSelection().toString().length&&e.preventDefault();(2===i||6===i)&&!/^\d$/.test(e.key)&&isChar?e.preventDefault():5===i&&!/^[\d.]$/.test(e.key)&&isChar?e.preventDefault():7===i&&!/^[\d,]*$/.test(e.key)&&isChar?e.preventDefault():8===i&&!/^[А-ЯІЇЄҐа-яіїєґ' -]$/u.test(e.key)&&isChar&&e.preventDefault();if(3===i){const vt=['винахід','корисну модель','торговельну марку'];'Backspace'===e.key||'Delete'===e.key?(e.preventDefault(),c.textContent='',c.classList.remove('invalid'),uS()):vt.includes(c.textContent.trim())&&isChar&&e.preventDefault()}});b.addEventListener('input',e=>{const c=e.target;if(!c.classList.contains('editable-cell'))return;const td=c.closest('td'),r=c.closest('tr');if(!td||!r)return;const i=td.cellIndex,v=c.textContent.trim(),V={2:vNU,3:()=>{const t=v.toLowerCase(),tm={'в':'винахід','к':'корисну модель','т':'торговельну марку'};if(1===t.length&&tm[t]){c.textContent=tm[t];const rg=document.createRange(),sl=window.getSelection();rg.selectNodeContents(c);rg.collapse(!1);sl.removeAllRanges();sl.addRange(rg)}const vt=Object.values(tm),iv=''===c.textContent||vt.includes(c.textContent);c.classList.toggle('invalid',!iv);ta&&r===b.firstElementChild&&iv&&''!==c.textContent&&sT(3)},5:()=>c.classList.toggle('invalid',v&&!iDS(v)),6:()=>c.classList.toggle('invalid',v&&!/^\d{2}$/.test(v)),7:()=>c.classList.toggle('invalid',v&&!/^\d{1,9},\d{2}$/.test(v)),8:()=>c.classList.toggle('invalid',v&&!/^[А-ЯІЇЄҐ][а-яіїєґ']+ [А-ЯІЇЄҐ'-]+$/u.test(v))};V[i]&&V[i]();if(7===i||5===i){const s=7===i?',':'.',w=','===s?'.':',';if(c.textContent.includes(w)){const sel=window.getSelection(),off=sel.getRangeAt(0).startOffset;c.textContent=c.textContent.replace(new RegExp(`\\${w}`,'g'),s);if(c.firstChild){const no=Math.min(off,c.firstChild.length),nr=document.createRange();nr.setStart(c.firstChild,no);nr.collapse(!0);sel.removeAllRanges();sel.addRange(nr)}}}cE(r);r===b.lastElementChild&&b.rows.length<M&&aR();uS()})});
+</script>
+</body>
+</html>
