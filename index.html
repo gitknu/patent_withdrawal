@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генератор документів</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.45.0/docxtemplater.js"></script>
+    <script src="https://unpkg.com/pizzip@3.1.6/dist/pizzip.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.8/FileSaver.js"></script>
+    <script src="https://unpkg.com/pizzip@3.1.6/dist/pizzip-utils.js"></script>
+    <style>
+        :root {
+            --primary: #007bff; --primary-dark: #0056b3;
+            --border-color: #ccc; --background-color: #f8f9fa;
+            --text-color: #212529; --light-text: #6c757d;
+            --success: #28a745; --error: #dc3545; --grey: #adb5bd;
+            --guide-bg: #eef4ff; --guide-text: #0056b3;
+            --error-bg: #f8d7da; --error-text: #721c24;
+            --switch-bg: #e9ecef; --switch-handle: #fff;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        body { background-color: var(--background-color); color: var(--text-color); line-height: 1.5; padding: 15px; }
+        .container { max-width: 1200px; margin: 20px auto; }
+        header { padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); position: relative; }
+        .header-main { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px; }
+        .header-controls { display: flex; align-items: center; gap: 20px; flex-grow: 1; }
+        .switcher { display: flex; align-items: center; gap: 10px; }
+        .switcher-label { font-weight: 500; color: var(--text-color); }
+        .toggle-switch { position: relative; display: inline-block; width: 120px; height: 34px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--switch-bg); transition: .4s; border-radius: 34px; border: 1px solid var(--border-color); }
+        .slider:before { position: absolute; content: ""; height: 26px; width: 55px; left: 4px; bottom: 3px; background-color: var(--switch-handle); transition: .4s; border-radius: 22px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .slider:after { content: 'Баланс'; position: absolute; right: 15px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 600; color: var(--light-text); transition: .4s; }
+        input:checked + .slider:after { content: 'Списання'; left: 15px; right: auto; color: var(--primary); }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(55px); }
+        .header-status { display: flex; align-items: center; gap: 20px; }
+        .status-counter { text-align: left; }
+        .status-value { font-weight: 700; font-size: 1.5rem; color: var(--primary); }
+        .status-label { font-size: .9rem; color: var(--light-text); }
+        h1 { font-size: 2rem; color: var(--text-color); text-align: center; margin-bottom: 8px; }
+        .guide-container { text-align: center; padding-top: 5px; min-height: 48px; }
+        .guide-text { display: inline-block; background-color: var(--guide-bg); color: var(--guide-text); padding: 8px 15px; border-radius: 20px; font-size: .95rem; font-weight: 500; opacity: 0; transform: translateY(-10px); transition: opacity .4s ease-out,transform .4s ease-out,background-color .3s,color .3s; max-width: 90%; }
+        .guide-text.visible { opacity: 1; transform: translateY(0); }
+        .final-hint { color: var(--light-text); font-weight: 500; }
+        .guide-text.error { background-color: var(--error-bg); color: var(--error-text); }
+        .card { background: white; border-radius: 8px; border: 1px solid var(--border-color); padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { padding: 10px 12px; border: 1px solid var(--border-color); text-align: left; vertical-align: middle; white-space: nowrap; }
+        th { background: #f1f1f1; font-weight: 600; }
+        .status-light-th { width: 30px; text-align: center; }
+        .status-light { width: 12px; height: 12px; border-radius: 50%; display: inline-block; transition: background-color .3s; }
+        .status-grey { background-color: var(--grey); }
+        .status-red { background-color: var(--error); }
+        .status-green { background-color: var(--success); }
+        .editable-cell { padding: 8px; min-height: 34px; outline: none; border: 1px solid transparent; border-radius: 4px; transition: all 0.2s ease-in-out; }
+        .editable-cell[data-placeholder]:empty:not(:focus):before { content: attr(data-placeholder); color: var(--light-text); opacity: .7; pointer-events: none; }
+        .editable-cell:focus { border-color: var(--primary); background: var(--guide-bg); box-shadow: 0 0 0 2px rgba(0,123,255,.25); }
+        .editable-cell.invalid { border-color: var(--error); box-shadow: 0 0 4px rgba(220,53,69,.4); }
+        .btn-container { text-align: center; margin-top: 20px; }
+        .btn { background-color: var(--primary); color: white; border: none; padding: 12px 25px; border-radius: 5px; font-weight: 600; cursor: pointer; font-size: 1rem; display: inline-flex; align-items: center; gap: 8px; transition: background-color 0.3s; }
+        .btn:hover { background-color: var(--primary-dark); }
+        .notification { position: fixed; top: 20px; right: 20px; padding: 15px; border-radius: 5px; color: white; z-index: 1000; opacity: 0; transition: opacity .3s; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .notification.show { opacity: 1; display: block; }
+        .notification.success { background-color: var(--success); }
+        .notification.error { background-color: var(--error); }
+        .loader { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; opacity: 0; pointer-events: none; transition: opacity .3s; }
+        .loader.active { opacity: 1; pointer-events: all; }
+        .spinner { width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loader-text { font-size: 1.1rem; font-weight: 600; color: var(--text-color); }
+        .top-generate-btn { margin-left: auto; }
+        .top-generate-btn .btn { padding: 8px 15px; font-size: .9rem; }
+        @media (max-width: 900px) {
+            .header-main { flex-direction: column; align-items: stretch; }
+            .header-controls { justify-content: space-between; width: 100%; }
+            .top-generate-btn { margin-left: 0; width: 100%; }
+            .top-generate-btn .btn { width: 100%; justify-content: center; }
+        }
+        @media (max-width: 768px) {
+            h1 { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <div class="header-main">
+            <div class="header-controls">
+                <div class="switcher">
+                    <span class="switcher-label">Тип документа:</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="mode-toggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="header-status">
+                    <div class="status-counter">
+                        <div class="status-value" id="filled-rows">0/3</div>
+                        <div class="status-label">Заповнено рядків</div>
+                    </div>
+                    <div class="status-counter">
+                        <div class="status-value" id="to-generate">0</div>
+                        <div class="status-label">До генерації</div>
+                    </div>
+                </div>
+            </div>
+            <div class="top-generate-btn">
+                <button id="generate-btn-top" class="btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+                    Згенерувати
+                </button>
+            </div>
+        </div>
+        <h1 id="main-title"></h1>
+        <div class="guide-container"><span id="guide-text-element" class="guide-text"></span></div>
+    </header>
+    <div class="card">
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr id="table-header-row">
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                </tbody>
+            </table>
+        </div>
+        <div class="btn-container">
+            <button id="generate-btn" class="btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+                Згенерувати DOCX файли
+            </button>
+        </div>
+    </div>
+</div>
+<div class="notification" id="notification"></div>
+<div class="loader" id="loader">
+    <div class="spinner"></div>
+    <div class="loader-text">Генеруємо документи...</div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const CONFIG = {
+        balance: {
+            title: 'Генератор постановки на баланс',
+            templateUrl: 'https://gitknu.github.io/patent_withdrawal/input_patent_balance.docx',
+            headers: ['#', 'Статус', 'Номер', 'Тип', 'Назва', 'Початок', 'Строк', 'Вартість', 'Підписує'],
+            dataKeys: ['num_p', 'type', 'name', 'start', 'time', 'value', 'person'],
+            placeholders: ['123456', 'в/к/т', 'МАШИНА ЧАСУ', '01.01.2020', '20', '1000,00', 'Тарас ШЕВЧЕНКО'],
+            colProps: { // Properties by column index
+                2: { maxLength: 7, allowedChars: /^\d$/ }, // Номер
+                3: { maxLength: 1, allowedChars: /^[вкт]$/i }, // Тип
+                5: { maxLength: 10, allowedChars: /^[\d.]$/ }, // Початок
+                6: { maxLength: 2, allowedChars: /^\d$/ }, // Строк
+                7: { maxLength: 12, allowedChars: /^[\d,]$/ }, // Вартість
+                8: { maxLength: 50, allowedChars: /^[А-ЯІЇЄҐа-яіїєґ'\s-]$/u }, // Підписує
+            },
+            errorMessages: [
+                { selector: 'td:nth-child(3) .editable-cell.invalid', message: 'Помилка: "Номер" має містити від 5 до 7 <b>унікальних</b> цифр.' },
+                { selector: 'td:nth-child(4) .editable-cell.invalid', message: 'Помилка: "Тип" невірний. Введіть "в", "к" або "т".' },
+                { selector: 'td:nth-child(6) .editable-cell.invalid', message: 'Помилка: "Початок" має невірний формат <b>ДД.ММ.РРРР</b>.' },
+                { selector: 'td:nth-child(7) .editable-cell.invalid', message: 'Помилка: "Строк" має містити рівно <b>2</b> цифри.' },
+                { selector: 'td:nth-child(8) .editable-cell.invalid', message: 'Помилка: "Вартість" має формат <b>1234,56</b>.' },
+                { selector: 'td:nth-child(9) .editable-cell.invalid', message: 'Помилка: "Підписує" має формат <b>Ім\'я ПРІЗВИЩЕ</b>.' },
+            ],
+            guideSteps: [
+                { text: "Введіть у першому полі від 5 до 7 цифр номеру патенту" },
+                { text: "Чудово! Натисніть Tab для переходу далі" },
+                { text: "Тепер введіть 'в', 'к' або 'т' для вибору типу" },
+                { text: "Добре. Для навігації використовуйте Tab та Shift + Tab" },
+                { text: "Заповніть решту полів у цьому рядку" },
+                { text: "Майже готово! Заповніть останнє поле у форматі 'Ім'я ПРІЗВИЩЕ'" },
+                { text: "Рядок заповнено! Натисніть Esc, щоб вийти з редагування" },
+                { text: "Супер! Тепер тисніть Enter, щоб згенерувати документи" },
+                { text: "<span class='final-hint'>Shift+Tab: Назад | Tab: Вперед | Esc: Вийти | Enter: Згенерувати</span>" }
+            ]
+        },
+        withdrawal: {
+            title: 'Генератор актів списання',
+            templateUrl: 'https://gitknu.github.io/patent_withdrawal/input_patent_withdrawal.docx',
+            headers: ['#', 'Статус', 'Номер', 'Тип', 'Назва', 'Номер НД', 'Початок', 'Кінець', 'Вартість', 'Підписує'],
+            dataKeys: ['num_p', 'type', 'name', 'num_db', 'start', 'end', 'value', 'person'],
+            placeholders: ['123456', 'в/к/т', 'МАШИНА ЧАСУ', '123456789', '01.01.2000', '31.12.2020', '1000,00', 'Тарас ШЕВЧЕНКО'],
+             colProps: { // Properties by column index
+                2: { maxLength: 7, allowedChars: /^\d$/ }, // Номер
+                3: { maxLength: 1, allowedChars: /^[вкт]$/i }, // Тип
+                5: { maxLength: 9, allowedChars: /^\d$/ }, // Номер НД
+                6: { maxLength: 10, allowedChars: /^[\d.]$/ }, // Початок
+                7: { maxLength: 10, allowedChars: /^[\d.]$/ }, // Кінець
+                8: { maxLength: 12, allowedChars: /^[\d,]$/ }, // Вартість
+                9: { maxLength: 50, allowedChars: /^[А-ЯІЇЄҐа-яіїєґ'\s-]$/u }, // Підписує
+            },
+            errorMessages: [
+                { selector: 'td:nth-child(3) .editable-cell.invalid', message: 'Помилка: "Номер" має містити від 5 до 7 <b>унікальних</b> цифр.' },
+                { selector: 'td:nth-child(4) .editable-cell.invalid', message: 'Помилка: "Тип" невірний. Введіть "в", "к" або "т".' },
+                { selector: 'td:nth-child(6) .editable-cell.invalid', message: 'Помилка: "Номер НД" має містити рівно <b>9</b> цифр.' },
+                { selector: 'td:nth-child(7) .editable-cell.invalid, td:nth-child(8) .editable-cell.invalid', message: 'Помилка: Перевірте <b>дати</b>. Невірний формат або логіка.' },
+                { selector: 'td:nth-child(9) .editable-cell.invalid', message: 'Помилка: "Вартість" має формат <b>1234,56</b>.' },
+                { selector: 'td:nth-child(10) .editable-cell.invalid', message: 'Помилка: "Підписує" має формат <b>Ім\'я ПРІЗВИЩЕ</b>.' }
+            ],
+            guideSteps: [ // Same guide steps can be reused or customized
+                { text: "Введіть у першому полі від 5 до 7 цифр номеру патенту" },
+                { text: "Чудово! Натисніть Tab для переходу далі" },
+                { text: "Тепер введіть 'в', 'к' або 'т' для вибору типу" },
+                { text: "Добре. Для навігації використовуйте Tab та Shift + Tab" },
+                { text: "Заповніть решту полів у цьому рядку" },
+                { text: "Майже готово! Заповніть останнє поле у форматі 'Ім'я ПРІЗВИЩЕ'" },
+                { text: "Рядок заповнено! Натисніть Esc, щоб вийти з редагування" },
+                { text: "Супер! Тепер тисніть Enter, щоб згенерувати документи" },
+                { text: "<span class='final-hint'>Shift+Tab: Назад | Tab: Вперед | Esc: Вийти | Enter: Згенерувати</span>" }
+            ]
+        }
+    };
+    const INITIAL_ROWS = 3;
+    const MAX_ROWS = 50;
+    let currentMode = 'balance';
+    let isTutorialActive = true;
+    let currentTutorialStep = 0;
+    const elements = {
+        modeToggle: document.getElementById('mode-toggle'),
+        title: document.getElementById('main-title'),
+        tableHeaderRow: document.getElementById('table-header-row'),
+        tableBody: document.getElementById('table-body'),
+        generateBtn: document.getElementById('generate-btn'),
+        generateBtnTop: document.getElementById('generate-btn-top'),
+        notification: document.getElementById('notification'),
+        filledRows: document.getElementById('filled-rows'),
+        toGenerate: document.getElementById('to-generate'),
+        loader: document.getElementById('loader'),
+        guideText: document.getElementById('guide-text-element'),
+    };
+    function switchMode(newMode) {
+        currentMode = newMode;
+        isTutorialActive = true;
+        currentTutorialStep = 0;
+        const config = CONFIG[currentMode];
+        elements.title.textContent = config.title;
+        updateTableHeader();
+        initializeTable();
+        showGuideText(0);
+    }
+    function updateTableHeader() {
+        const config = CONFIG[currentMode];
+        let headerHTML = config.headers.map((h, i) => {
+             if (h === 'Статус') {
+                return `<th class="status-light-th"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg></th>`;
+             }
+             return `<th>${h}</th>`;
+        }).join('');
+        elements.tableHeaderRow.innerHTML = headerHTML;
+    }
+    function initializeTable() {
+        elements.tableBody.innerHTML = '';
+        for (let i = 0; i < INITIAL_ROWS; i++) {
+            addRow();
+        }
+        updateStatus();
+        const firstRowCells = elements.tableBody.querySelectorAll('tr:first-child .editable-cell');
+        const placeholders = CONFIG[currentMode].placeholders;
+        firstRowCells.forEach((cell, i) => {
+            if (placeholders[i]) {
+                cell.setAttribute('data-placeholder', placeholders[i]);
+            }
+        });
+        const firstCell = elements.tableBody.querySelector('tr:first-child .editable-cell');
+        if (firstCell) firstCell.focus();
+    }
+    function addRow() {
+        const rowIndex = elements.tableBody.rows.length;
+        if (rowIndex >= MAX_ROWS) return;
+        const row = document.createElement('tr');
+        const numCols = CONFIG[currentMode].dataKeys.length;
+        let rowHTML = `<td>${rowIndex + 1}</td><td><div class="status-light status-grey"></div></td>`;
+        for(let i = 0; i < numCols; i++) {
+            rowHTML += `<td><div class="editable-cell" contenteditable="true"></div></td>`;
+        }
+        row.innerHTML = rowHTML;
+        elements.tableBody.appendChild(row);
+    }
+    function updateStatus() {
+        const rows = elements.tableBody.querySelectorAll('tr');
+        let completeRowCount = 0;
+        rows.forEach((row, rowIndex) => {
+            const cells = row.querySelectorAll('.editable-cell');
+            const statusLight = row.querySelector('.status-light');
+            let filledCellCount = 0;
+            const hasInvalidCell = !!row.querySelector('.editable-cell.invalid');
+            cells.forEach(cell => {
+                if (cell.textContent.trim() !== '') filledCellCount++;
+            });
+            const isComplete = filledCellCount === cells.length && !hasInvalidCell;
+            if (filledCellCount === 0) {
+                statusLight.className = 'status-light status-grey';
+            } else if (isComplete) {
+                statusLight.className = 'status-light status-green';
+                completeRowCount++;
+            } else {
+                statusLight.className = 'status-light status-red';
+            }
+            if (isTutorialActive && rowIndex === 0 && isComplete && document.activeElement === row.querySelector('td:last-child .editable-cell')) {
+                showGuideText(6);
+            }
+        });
+        elements.filledRows.textContent = `${completeRowCount}/${rows.length}`;
+        elements.toGenerate.textContent = completeRowCount;
+    }
+    async function generateDocuments() {
+        if (isTutorialActive) endTutorial();
+        const config = CONFIG[currentMode];
+        for (const error of config.errorMessages) {
+            const invalidCells = elements.tableBody.querySelectorAll(error.selector);
+            if (invalidCells.length > 0) {
+                showGuideAlert(error.message);
+                invalidCells[0].focus();
+                return;
+            }
+        }
+        const dataToGenerate = [];
+        elements.tableBody.querySelectorAll('tr').forEach(row => {
+            const cells = row.querySelectorAll('.editable-cell');
+            const rowData = {};
+            let isRowComplete = true;
+            let hasData = false;
+            cells.forEach((cell, i) => {
+                const value = cell.textContent.trim();
+                rowData[config.dataKeys[i]] = value;
+                if (value !== '') hasData = true;
+                else isRowComplete = false;
+            });
+            if (hasData && isRowComplete && !row.querySelector('.editable-cell.invalid')) {
+                dataToGenerate.push(rowData);
+            }
+        });
+        if (dataToGenerate.length === 0) {
+            showGuideAlert('Помилка: Немає повністю та коректно заповнених рядків для генерації.');
+            return;
+        }
+        elements.loader.classList.add('active');
+        try {
+            const templateContent = await new Promise((resolve, reject) => {
+                PizZipUtils.getBinaryContent(config.templateUrl, (error, content) => {
+                    if (error) reject(new Error('Помилка завантаження шаблону.'));
+                    else resolve(content);
+                });
+            });
+            for (const [i, rowData] of dataToGenerate.entries()) {
+                const zip = new PizZip(templateContent);
+                const doc = new docxtemplater(zip, { delimiters: { start: '<', end: '>' } });
+                doc.setData(rowData);
+                doc.render();
+                const out = doc.getZip().generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+                saveAs(out, `${i + 1}_Акт_${rowData.num_p || 'Номер'}.docx`);
+            }
+            showNotification(`Успішно згенеровано ${dataToGenerate.length} документів!`);
+        } catch (e) {
+            console.error('Generation error:', e);
+            showGuideAlert(`Критична помилка: ${e.message}`);
+        } finally {
+            elements.loader.classList.remove('active');
+        }
+    }
+    function isValidDateString(d) {
+        if (!/^\d{2}\.\d{2}\.\d{4}$/.test(d)) return false;
+        const [day, month, year] = d.split('.').map(p => parseInt(p, 10));
+        if (year < 1939 || year > 2100 || month < 1 || month > 12) return false;
+        const date = new Date(year, month - 1, day);
+        return date.getFullYear() === year && date.getMonth() === (month - 1) && date.getDate() === day;
+    }
+    function parseDate(dateString) {
+        const parts = dateString.split('.');
+        return new Date(parts[2], parts[1] - 1, parts[0]);
+    }
+    function validateCell(cell) {
+        const row = cell.closest('tr');
+        const td = cell.closest('td');
+        if (!td || !row) return;
+        const colIndex = td.cellIndex;
+        const value = cell.textContent.trim();
+        if (colIndex === 2) { 
+            const cells = elements.tableBody.querySelectorAll('td:nth-child(3) .editable-cell');
+            const values = {};
+            cells.forEach(c => {
+                const v = c.textContent.trim();
+                if (v) {
+                    if (!values[v]) values[v] = { count: 0 };
+                    values[v].count++;
+                }
+            });
+            cells.forEach(c => {
+                const t = c.textContent.trim();
+                const isLengthInvalid = t && !/^\d{5,7}$/.test(t);
+                const isDuplicate = t && values[t] && values[t].count > 1;
+                c.classList.toggle('invalid', isLengthInvalid || isDuplicate);
+            });
+            const firstCell = elements.tableBody.querySelector('tr:first-child td:nth-child(3) .editable-cell');
+            if (firstCell && !firstCell.classList.contains('invalid') && firstCell.textContent.length >= 5) {
+                showGuideText(1);
+            }
+        }
+        if (colIndex === 3) {
+            const v = cell.textContent.trim().toLowerCase();
+            const typeMap = { 'в': 'винахід', 'к': 'корисну модель', 'т': 'торговельну марку' };
+            if (v.length === 1 && typeMap[v]) {
+                cell.textContent = typeMap[v];
+                const range = document.createRange();
+                const sel = window.getSelection();
+                range.selectNodeContents(cell);
+                range.collapse(false);
+                sel.removeAllRanges();
+                sel.addRange(range);
+            }
+            const validTypes = Object.values(typeMap);
+            const isValid = value === '' || validTypes.includes(cell.textContent);
+            cell.classList.toggle('invalid', !isValid);
+            if (isTutorialActive && row === elements.tableBody.firstElementChild && isValid && value !== '') {
+                showGuideText(3);
+            }
+            if(currentMode === 'withdrawal') validateDateRow(row); 
+        }
+        const personColIndex = CONFIG[currentMode].headers.indexOf('Підписує');
+        if (colIndex === personColIndex) {
+            cell.classList.toggle('invalid', value && !/^[А-ЯІЇЄҐ][а-яіїєґ']+ [А-ЯІЇЄҐ'-]+$/u.test(value));
+        }
+        if (currentMode === 'balance') {
+            if (colIndex === 5) cell.classList.toggle('invalid', value && !isValidDateString(value)); // Start Date
+            if (colIndex === 6) cell.classList.toggle('invalid', value && !/^\d{2}$/.test(value)); // Time
+            if (colIndex === 7) cell.classList.toggle('invalid', value && !/^\d{1,9},\d{2}$/.test(value)); // Value
+        } else if (currentMode === 'withdrawal') {
+            if (colIndex === 5) cell.classList.toggle('invalid', value && !/^\d{9}$/.test(value)); // ND Number
+            if (colIndex === 6 || colIndex === 7) validateDateRow(row); // Start/End Date
+            if (colIndex === 8) cell.classList.toggle('invalid', value && !/^\d{1,9},\d{2}$/.test(value)); // Value
+        }
+        const valueColIndex = CONFIG[currentMode].headers.indexOf('Вартість');
+        const startDateColIndex = CONFIG[currentMode].headers.indexOf('Початок');
+        const endDateColIndex = CONFIG[currentMode].headers.indexOf('Кінець');
+        if (colIndex === valueColIndex || colIndex === startDateColIndex || (endDateColIndex > -1 && colIndex === endDateColIndex) ) {
+            const separator = (colIndex === valueColIndex) ? ',' : '.';
+            const wrongSeparator = (separator === ',') ? '.' : ',';
+            if (cell.textContent.includes(wrongSeparator)) {
+                const selection = window.getSelection();
+                const offset = selection.getRangeAt(0).startOffset;
+                cell.textContent = cell.textContent.replace(new RegExp(`\\${wrongSeparator}`, 'g'), separator);
+                if (cell.firstChild) {
+                    const newOffset = Math.min(offset, cell.firstChild.length);
+                    const newRange = document.createRange();
+                    newRange.setStart(cell.firstChild, newOffset);
+                    newRange.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
+                }
+            }
+        }
+    }
+    function validateDateRow(row) {
+        if (currentMode !== 'withdrawal') return;
+        const startCell = row.querySelector('td:nth-child(7) .editable-cell');
+        const endCell = row.querySelector('td:nth-child(8) .editable-cell');
+        const typeCell = row.querySelector('td:nth-child(4) .editable-cell');
+        if (!startCell || !endCell || !typeCell) return;
+        const startString = startCell.textContent.trim();
+        const endString = endCell.textContent.trim();
+        startCell.classList.remove('invalid');
+        endCell.classList.remove('invalid');
+        const isStartValid = startString === '' || isValidDateString(startString);
+        const isEndValid = endString === '' || isValidDateString(endString);
+        if (startString !== '' && !isStartValid) startCell.classList.add('invalid');
+        if (endString !== '' && !isEndValid) endCell.classList.add('invalid');
+        if (isStartValid && isEndValid && startString !== '' && endString !== '') {
+            const startDate = parseDate(startString);
+            const endDate = parseDate(endString);
+            if (endDate <= startDate) {
+                startCell.classList.add('invalid');
+                endCell.classList.add('invalid');
+            }
+        }
+    }
+    function showNotification(message, isSuccess = true) {
+        elements.notification.textContent = message;
+        elements.notification.className = `notification ${isSuccess ? 'success' : 'error'} show`;
+        setTimeout(() => elements.notification.classList.remove('show'), 5000);
+    }
+    function showGuideText(stepIndex) {
+        const guideSteps = CONFIG[currentMode].guideSteps;
+        if (!isTutorialActive && stepIndex < guideSteps.length - 1) return;
+        if (isTutorialActive && stepIndex < currentTutorialStep) return;
+        currentTutorialStep = stepIndex;
+        const step = guideSteps[stepIndex];
+        elements.guideText.classList.remove('visible');
+        setTimeout(() => {
+            elements.guideText.innerHTML = step.text;
+            elements.guideText.classList.remove('error');
+            elements.guideText.classList.add('visible');
+        }, 200);
+    }
+    function showGuideAlert(message) {
+        if (isTutorialActive) return;
+        elements.guideText.classList.remove('visible');
+        setTimeout(() => {
+            elements.guideText.innerHTML = message;
+            elements.guideText.classList.add('error', 'visible');
+        }, 150);
+    }
+    function endTutorial() {
+        if (!isTutorialActive) return;
+        isTutorialActive = false;
+        setTimeout(() => showGuideText(CONFIG[currentMode].guideSteps.length - 1), 500);
+    }
+    function checkRowForErrors(row) {
+        if (!row) return;
+        const config = CONFIG[currentMode];
+        for (const error of config.errorMessages) {
+            if (row.querySelector(error.selector)) {
+                showGuideAlert(error.message);
+                return;
+            }
+        }
+        if (elements.guideText.classList.contains('error')) {
+            showGuideText(config.guideSteps.length - 1); 
+        }
+    }
+    elements.modeToggle.addEventListener('change', (e) => {
+        switchMode(e.target.checked ? 'withdrawal' : 'balance');
+    });
+    elements.generateBtn.addEventListener('click', generateDocuments);
+    elements.generateBtnTop.addEventListener('click', generateDocuments);
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.target.classList.contains('editable-cell')) {
+            e.preventDefault();
+            generateDocuments();
+        } else if (e.key === 'Escape' || e.key === 'Esc') {
+            if (document.activeElement.classList.contains('editable-cell')) {
+                document.activeElement.blur();
+                if (isTutorialActive) showGuideText(7);
+            }
+        }
+    });
+    elements.tableBody.addEventListener('keydown', e => {
+        const cell = e.target;
+        if (!cell.classList.contains('editable-cell')) return;
+        if (e.key === 'Tab' && cell.classList.contains('invalid')) {
+            e.preventDefault();
+            checkRowForErrors(cell.closest('tr'));
+            return;
+        }
+        const isSpecialKey = e.key.length > 1; 
+        if (isSpecialKey) return;
+        const td = cell.closest('td');
+        if (!td) return;
+        const colIndex = td.cellIndex;
+        const colProps = CONFIG[currentMode].colProps[colIndex];
+        if (colProps) {
+            if (cell.textContent.length >= colProps.maxLength && window.getSelection().toString().length === 0) {
+                 e.preventDefault();
+            }
+            if (colProps.allowedChars && !colProps.allowedChars.test(e.key)) {
+                e.preventDefault();
+            }
+        }
+    });
+    elements.tableBody.addEventListener('input', e => {
+        const cell = e.target;
+        if (!cell.classList.contains('editable-cell')) return;
+        const row = cell.closest('tr');
+        validateCell(cell);
+        checkRowForErrors(row);
+        if (row === elements.tableBody.lastElementChild && elements.tableBody.rows.length < MAX_ROWS) {
+            addRow();
+        }
+        updateStatus();
+    });
+    elements.tableBody.addEventListener('focusin', e => {
+        const cell = e.target;
+        if (!cell.classList.contains('editable-cell')) return;
+        const row = cell.closest('tr');
+        if (isTutorialActive && row !== elements.tableBody.firstElementChild) {
+            endTutorial();
+        }
+        if (!isTutorialActive) return;
+        const colIndex = cell.closest('td').cellIndex;
+        const personColIndex = CONFIG[currentMode].headers.indexOf('Підписує');
+        if (colIndex === 2) showGuideText(0); 
+        else if (colIndex === 3) showGuideText(2); 
+        else if (colIndex === personColIndex) showGuideText(5);
+        else if (colIndex > 3) showGuideText(4);
+    });
+    switchMode('balance');
+});
+</script>
+</body>
+</html>
