@@ -182,32 +182,25 @@
         function showGuideText(stepIndex) {
             if (!tutorialActive && stepIndex < tutorialSteps.length - 1) return;
             if (tutorialActive && stepIndex < tutorialStep) return;
-            
             tutorialStep = stepIndex;
             const step = tutorialSteps[stepIndex];
-            
-            guideTextElement.classList.remove('visible'); // Animate out first
-            
-            // Then, update content and classes together to prevent race conditions
+            guideTextElement.classList.remove('visible');
             setTimeout(() => {
                 guideTextElement.innerHTML = step.text;
                 guideTextElement.classList.remove('error'); // Ensure error class is removed
                 guideTextElement.classList.add('visible');
             }, 200);
         }
-
         function endTutorial() {
             if (!tutorialActive) return;
             tutorialActive = false;
             setTimeout(() => showGuideText(tutorialSteps.length - 1), 500);
         }
-
         function validatePersonName(cell) {
             const text = cell.textContent.trim();
             const nameRegex = /^[А-ЯІЇЄҐ][а-яіїєґ']+ [А-ЯІЇЄҐ'-]+$/u;
             cell.classList.toggle('invalid', text !== '' && !nameRegex.test(text));
         }
-
         function isValidDateString(dateStr) {
             if (!/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) return false;
             const parts = dateStr.split('.');
@@ -218,21 +211,17 @@
             const date = new Date(year, month - 1, day);
             return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
         }
-
         function isValidCostString(costStr) {
             return /^\d{1,9},\d{2}$/.test(costStr);
         }
-
         function parseDate(dateStr) {
             const parts = dateStr.split('.');
             return new Date(parts[2], parts[1] - 1, parts[0]);
         }
-
         function validateCostRow(cell) {
             const costStr = cell.textContent.trim();
             cell.classList.toggle('invalid', costStr !== '' && !isValidCostString(costStr));
         }
-
         function validateNumberUniqueness() {
             const numberCells = tableBody.querySelectorAll('td:nth-child(3) .editable-cell');
             const values = {};
@@ -255,7 +244,6 @@
                 showGuideText(1);
             }
         }
-
         function validateDateRow(row) {
             const startDateCell = row.querySelector('td:nth-child(7) .editable-cell');
             const endDateCell = row.querySelector('td:nth-child(8) .editable-cell');
@@ -294,7 +282,6 @@
                 }
             }
         }
-
         function addNewRow() {
             const newIndex = tableBody.rows.length;
             const newRow = document.createElement('tr');
@@ -306,7 +293,6 @@
             newRow.innerHTML = html;
             tableBody.appendChild(newRow);
         }
-
         function initTable() {
             tableBody.innerHTML = '';
             for (let i = 0; i < INITIAL_ROWS_COUNT; i++) addNewRow();
@@ -314,7 +300,6 @@
             const firstCell = tableBody.querySelector('tr:first-child .editable-cell');
             if (firstCell) firstCell.focus();
         }
-
         function updateStatus() {
             const rows = tableBody.querySelectorAll('tr');
             let completeRowCount = 0;
@@ -344,7 +329,6 @@
             filledRowsEl.textContent = `${completeRowCount}/${rows.length}`;
             toGenerateEl.textContent = completeRowCount;
         }
-
         function showNotification(message, isSuccess = true) {
             notification.textContent = message;
             notification.className = `notification ${isSuccess ? 'success' : 'error'} show`;
@@ -352,7 +336,6 @@
                 notification.classList.remove('show');
             }, 5000);
         }
-
         function getTableData() {
             const data = [];
             tableBody.querySelectorAll('tr').forEach(row => {
@@ -371,13 +354,10 @@
             });
             return data;
         }
-
         async function generateDocuments() {
-            // If the user tries to generate, the tutorial ends.
             if (tutorialActive) {
                 endTutorial();
             }
-
             for (const check of checks) {
                 const invalidCells = tableBody.querySelectorAll(check.selector);
                 if (invalidCells.length > 0) {
@@ -415,7 +395,6 @@
                 loader.classList.remove('active');
             }
         }
-
         function checkAndShowLiveError(row) {
             if (!row) return;
             for (const check of checks) {
@@ -426,10 +405,8 @@
             }
             hideGuideAlert();
         }
-
         generateBtn.addEventListener('click', generateDocuments);
         generateBtnTop.addEventListener('click', generateDocuments);
-
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Enter' && !event.target.classList.contains('editable-cell')) {
                 event.preventDefault();
@@ -441,49 +418,39 @@
                 }
             }
         });
-
         document.addEventListener('DOMContentLoaded', () => {
             initTable();
             showGuideText(0);
-
             tableBody.addEventListener('focusin', (event) => {
                 const cell = event.target;
                 if (!cell.classList.contains('editable-cell')) return;
-
                 const parentRow = cell.closest('tr');
                 if (tutorialActive && parentRow !== tableBody.firstElementChild) {
                     endTutorial();
                 }
-
                 if (!tutorialActive) return;
-
                 const cellIndex = cell.closest('td').cellIndex;
-                if(cellIndex === 3) showGuideText(2); // Corresponds to 'Тип'
-                if(cellIndex === 4) showGuideText(4); // Corresponds to 'Назва'
-                if(cellIndex === 9) showGuideText(5); // Corresponds to 'Підписує'
+                if(cellIndex === 3) showGuideText(2); 
+                if(cellIndex === 4) showGuideText(4);
+                if(cellIndex === 9) showGuideText(5); 
             });
-
             tableBody.addEventListener('keydown', (event) => {
                 const cell = event.target;
                 if (!cell.classList.contains('editable-cell')) return;
                 const isCharKey = event.key.length === 1 && !event.ctrlKey && !event.metaKey;
                 const cellIndex = cell.closest('td').cellIndex;
-                
                 if (event.key === 'Tab' && cell.classList.contains('invalid')) {
                     event.preventDefault();
                     return;
                 }
-                
                 const maxLengths = { 2: 7, 5: 9, 6: 10, 7: 10, 8: 12 }; // UPDATED: Max length for 'Номер' is 7
                 if (maxLengths[cellIndex] && cell.textContent.length >= maxLengths[cellIndex] && isCharKey && window.getSelection().toString().length === 0) {
                     event.preventDefault();
                 }
-
                 if ((cellIndex === 2 || cellIndex === 5) && !/^\d$/.test(event.key) && isCharKey) event.preventDefault();
                 else if ((cellIndex === 6 || cellIndex === 7) && !/^[\d.]$/.test(event.key) && isCharKey) event.preventDefault();
                 else if (cellIndex === 8 && !/^[\d,]*$/.test(event.key) && isCharKey) event.preventDefault();
                 else if (cellIndex === 9 && !/^[А-ЯІЇЄҐа-яіїєґ' -]$/u.test(event.key) && isCharKey) event.preventDefault();
-                
                 if (cellIndex === 3) {
                     const validTypes = ['винахід', 'корисну модель', 'торговельну марку'];
                     if (event.key === 'Backspace' || event.key === 'Delete') {
@@ -492,16 +459,13 @@
                     } else if (validTypes.includes(cell.textContent.trim()) && isCharKey) event.preventDefault();
                 }
             });
-
             tableBody.addEventListener('input', (event) => {
                 const cell = event.target;
                 if (!cell.classList.contains('editable-cell')) return;
-
                 const parentTd = cell.closest('td');
                 const parentRow = cell.closest('tr');
                 if (!parentTd || !parentRow) return;
                 const cellIndex = parentTd.cellIndex;
-
                 if (cellIndex === 2) validateNumberUniqueness();
                 if (cellIndex === 3) {
                     const text = cell.textContent.trim().toLowerCase();
@@ -524,7 +488,6 @@
                 if (cellIndex === 6 || cellIndex === 7) validateDateRow(parentRow);
                 if (cellIndex === 8) validateCostRow(cell);
                 if (cellIndex === 9) validatePersonName(cell);
-
                 if (cellIndex === 8 || cellIndex === 6 || cellIndex === 7) {
                     const separator = (cellIndex === 8) ? ',' : '.';
                     const wrongSeparator = (separator === ',') ? '.' : ',';
@@ -542,15 +505,12 @@
                         }
                     }
                 }
-                
                 checkAndShowLiveError(parentRow);
-
                 if (parentRow === tableBody.lastElementChild && tableBody.rows.length < MAX_ROWS_COUNT) {
                     addNewRow();
                 }
                 updateStatus();
             });
-
             const firstRowCells = tableBody.querySelectorAll('tr:first-child .editable-cell');
             const placeholders = [ '123456', 'в/к/т', 'МАШИНА ЧАСУ', '123456789', '01.01.2000', '31.12.2020', '1000,00', 'Тарас ШЕВЧЕНКО'];
             firstRowCells.forEach((cell, index) => {
