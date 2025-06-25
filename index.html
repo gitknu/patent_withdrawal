@@ -156,6 +156,14 @@ document.addEventListener('DOMContentLoaded', () => {
             headers: ['#', 'Статус', 'Номер', 'Тип', 'Назва', 'Початок', 'Строк', 'Вартість', 'Підписує'],
             dataKeys: ['num_p', 'type', 'name', 'start', 'time', 'value', 'person'],
             placeholders: ['123456', 'в/к/т', 'МАШИНА ЧАСУ', '01.01.2020', '20', '1000,00', 'Тарас ШЕВЧЕНКО'],
+            colProps: { // Properties by column index
+                2: { maxLength: 7, allowedChars: /^\d$/ }, // Номер
+                3: { maxLength: 1, allowedChars: /^[вкт]$/i }, // Тип
+                5: { maxLength: 10, allowedChars: /^[\d.]$/ }, // Початок
+                6: { maxLength: 2, allowedChars: /^\d$/ }, // Строк
+                7: { maxLength: 12, allowedChars: /^[\d,]$/ }, // Вартість
+                8: { maxLength: 50, allowedChars: /^[А-ЯІЇЄҐа-яіїєґ'\s-]$/u }, // Підписує
+            },
             errorMessages: [
                 { selector: 'td:nth-child(3) .editable-cell.invalid', message: 'Помилка: "Номер" має містити від 5 до 7 <b>унікальних</b> цифр.' },
                 { selector: 'td:nth-child(4) .editable-cell.invalid', message: 'Помилка: "Тип" невірний. Введіть "в", "к" або "т".' },
@@ -182,6 +190,15 @@ document.addEventListener('DOMContentLoaded', () => {
             headers: ['#', 'Статус', 'Номер', 'Тип', 'Назва', 'Номер НД', 'Початок', 'Кінець', 'Вартість', 'Підписує'],
             dataKeys: ['num_p', 'type', 'name', 'num_db', 'start', 'end', 'value', 'person'],
             placeholders: ['123456', 'в/к/т', 'МАШИНА ЧАСУ', '123456789', '01.01.2000', '31.12.2020', '1000,00', 'Тарас ШЕВЧЕНКО'],
+             colProps: { // Properties by column index
+                2: { maxLength: 7, allowedChars: /^\d$/ }, // Номер
+                3: { maxLength: 1, allowedChars: /^[вкт]$/i }, // Тип
+                5: { maxLength: 9, allowedChars: /^\d$/ }, // Номер НД
+                6: { maxLength: 10, allowedChars: /^[\d.]$/ }, // Початок
+                7: { maxLength: 10, allowedChars: /^[\d.]$/ }, // Кінець
+                8: { maxLength: 12, allowedChars: /^[\d,]$/ }, // Вартість
+                9: { maxLength: 50, allowedChars: /^[А-ЯІЇЄҐа-яіїєґ'\s-]$/u }, // Підписує
+            },
             errorMessages: [
                 { selector: 'td:nth-child(3) .editable-cell.invalid', message: 'Помилка: "Номер" має містити від 5 до 7 <b>унікальних</b> цифр.' },
                 { selector: 'td:nth-child(4) .editable-cell.invalid', message: 'Помилка: "Тип" невірний. Введіть "в", "к" або "т".' },
@@ -602,6 +619,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    elements.tableBody.addEventListener('keydown', e => {
+        const cell = e.target;
+        if (!cell.classList.contains('editable-cell')) return;
+
+        // Block navigation from invalid cell
+        if (e.key === 'Tab' && cell.classList.contains('invalid')) {
+            e.preventDefault();
+            checkRowForErrors(cell.closest('tr'));
+            return;
+        }
+
+        const isSpecialKey = e.key.length > 1; // "Backspace", "ArrowLeft", etc.
+        if (isSpecialKey) return;
+
+        const td = cell.closest('td');
+        if (!td) return;
+        
+        const colIndex = td.cellIndex;
+        const colProps = CONFIG[currentMode].colProps[colIndex];
+
+        if (colProps) {
+            // Prevent exceeding max length
+            if (cell.textContent.length >= colProps.maxLength && window.getSelection().toString().length === 0) {
+                 e.preventDefault();
+            }
+            // Prevent invalid characters
+            if (colProps.allowedChars && !colProps.allowedChars.test(e.key)) {
+                e.preventDefault();
+            }
+        }
+    });
+
     elements.tableBody.addEventListener('input', e => {
         const cell = e.target;
         if (!cell.classList.contains('editable-cell')) return;
@@ -630,13 +679,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const colIndex = cell.closest('td').cellIndex;
         const personColIndex = CONFIG[currentMode].headers.indexOf('Підписує');
         
-        if (colIndex === 2) showGuideText(2);
-        else if (colIndex === 3) showGuideText(4);
+        if (colIndex === 2) showGuideText(0); // Patent Number
+        else if (colIndex === 3) showGuideText(2); // Type
         else if (colIndex === personColIndex) showGuideText(5);
+        else if (colIndex > 3) showGuideText(4);
     });
 
+    // --- INITIALIZATION ---
     switchMode('balance');
 });
 </script>
+
 </body>
 </html>
